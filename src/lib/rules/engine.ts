@@ -9,10 +9,35 @@ export type Step =
 export type DisplayOutcome = FinalOutcome | 'possibly_exempt'
 export type Lang = 'en' | 'es'
 
-export function nextStep(set: RuleSet, answers: Answers): Step {
-  const total = set.rules.length
+// The rules are California rules, so "today" is the California calendar date. Using a fixed
+// time zone (not the device's or the server's) also means the server render and the browser
+// agree on which rules are active, so the question count can't differ between them.
+export function californiaDate(now: Date): string {
+  try {
+    // en-CA formats as YYYY-MM-DD.
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now)
+  } catch {
+    return now.toISOString().slice(0, 10)
+  }
+}
+
+// Rules still in effect on `now`. A rule with `validUntil` applies through that date (inclusive)
+// and is skipped afterwards, exactly as if it weren't in the list.
+export function activeRules(set: RuleSet, now: Date = new Date()): readonly Rule[] {
+  const today = californiaDate(now)
+  return set.rules.filter((r) => r.validUntil === undefined || r.validUntil >= today)
+}
+
+export function nextStep(set: RuleSet, answers: Answers, now: Date = new Date()): Step {
+  const rules = activeRules(set, now)
+  const total = rules.length
   for (let index = 0; index < total; index++) {
-    const rule = set.rules[index]
+    const rule = rules[index]
     const answer = answers[rule.id]
     if (answer === undefined) return { type: 'question', rule, index, total }
     if (answer === 'unsure') return { type: 'result', outcome: 'ask_county', ruleId: rule.id }
@@ -22,12 +47,13 @@ export function nextStep(set: RuleSet, answers: Answers): Step {
   return { type: 'result', outcome: 'subject', ruleId: null }
 }
 
-export function goBack(set: RuleSet, answers: Answers): Answers {
-  const step = nextStep(set, answers)
+export function goBack(set: RuleSet, answers: Answers, now: Date = new Date()): Answers {
+  const rules = activeRules(set, now)
+  const step = nextStep(set, answers, now)
   const dropId =
     step.type === 'question'
-      ? set.rules[step.index - 1]?.id
-      : step.ruleId ?? set.rules[set.rules.length - 1].id
+      ? rules[step.index - 1]?.id
+      : step.ruleId ?? rules[rules.length - 1]?.id
   if (!dropId) return answers
   // Keep only answers before the dropped rule, so stale answers further on can't resurface.
   const cut = set.rules.findIndex((r) => r.id === dropId)
@@ -40,13 +66,19 @@ export function displayOutcome(set: RuleSet, step: Extract<Step, { type: 'result
   return set.reviewedAt !== null && rule?.confidence === 'confirmed' ? 'likely_exempt' : 'possibly_exempt'
 }
 
+// Picks the rule's text in `lang`, falling back to English (and flagging it) when a Spanish
+// text is missing. `hint` and `proof` are null when the rule has none in any language.
 export function ruleText(rule: Rule, lang: Lang) {
-  const q = lang === 'es' ? rule.question_es : rule.question_en
-  const p = lang === 'es' ? rule.proofThatHelps_es : rule.proofThatHelps_en
+  const es = lang === 'es'
+  const q = es ? rule.question_es : rule.question_en
+  const h = es ? rule.hint_es : rule.hint_en
+  const p = es ? rule.proofThatHelps_es : rule.proofThatHelps_en
   return {
     question: q ?? rule.question_en,
-    proof: p ?? rule.proofThatHelps_en,
-    questionFallback: lang === 'es' && !rule.question_es,
-    proofFallback: lang === 'es' && !rule.proofThatHelps_es,
+    hint: h ?? rule.hint_en ?? null,
+    proof: p ?? rule.proofThatHelps_en ?? null,
+    questionFallback: es && !rule.question_es,
+    hintFallback: es && !!rule.hint_en && !rule.hint_es,
+    proofFallback: es && !!rule.proofThatHelps_en && !rule.proofThatHelps_es,
   }
 }

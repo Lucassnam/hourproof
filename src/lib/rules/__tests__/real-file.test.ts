@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { ruleSet } from '../load'
-import { displayOutcome, nextStep, type Answers } from '../engine'
+import { displayOutcome, nextStep, ruleText, type Answers } from '../engine'
 
 describe('shipped rule file', () => {
   test('parses and has at least 18 rules', () => {
@@ -53,4 +53,50 @@ describe('shipped rule file: safety gate (unreviewed file must never claim likel
       expect(displayOutcome(ruleSet, step as Extract<typeof step, { type: 'result' }>)).toBe('possibly_exempt')
     })
   }
+})
+
+describe('shipped rule file: Spanish texts are complete (no English fallback in the Spanish screener)', () => {
+  for (const rule of ruleSet.rules) {
+    test(`${rule.id}: question_es, proofThatHelps_es and hint_es are present where English exists`, () => {
+      expect(rule.question_es, `${rule.id}.question_es`).toBeTruthy()
+      if (rule.proofThatHelps_en) expect(rule.proofThatHelps_es, `${rule.id}.proofThatHelps_es`).toBeTruthy()
+      if (rule.hint_en) expect(rule.hint_es, `${rule.id}.hint_es`).toBeTruthy()
+      const t = ruleText(rule, 'es')
+      expect(t.questionFallback || t.hintFallback || t.proofFallback).toBe(false)
+    })
+  }
+})
+
+describe('shipped rule file: time limits and sources', () => {
+  test('waived_county_scope ends 2026-10-31, and its own sourceQuote says so', () => {
+    const rule = ruleSet.rules.find((r) => r.id === 'waived_county_scope')
+    expect(rule?.validUntil).toBe('2026-10-31')
+    expect(rule?.sourceQuote).toContain('through October 31, 2026')
+  })
+
+  test('waived_county_scope is asked through Oct 31, 2026 and skipped from Nov 1, 2026 (California time)', () => {
+    const answers: Answers = { age_scope: 'no' }
+    expect(nextStep(ruleSet, answers, new Date('2026-10-31T23:30:00-07:00'))).toMatchObject({
+      type: 'question', rule: { id: 'waived_county_scope' }, total: ruleSet.rules.length,
+    })
+    expect(nextStep(ruleSet, answers, new Date('2026-11-01T00:30:00-07:00'))).toMatchObject({
+      type: 'question', rule: { id: 'child_under_14_calfresh_household' }, total: ruleSet.rules.length - 1,
+    })
+  })
+
+  test('only waived_county_scope is time-limited', () =>
+    expect(ruleSet.rules.filter((r) => r.validUntil).map((r) => r.id)).toEqual(['waived_county_scope']))
+
+  test('generalSourceUrl is the CDSS ACL 26-29 letter the rules cite', () => {
+    expect(ruleSet.generalSourceUrl).toBe(
+      'https://cdss.ca.gov/Portals/9/Additional-Resources/Letters-and-Notices/ACLs/2026/26-29.pdf',
+    )
+    expect(ruleSet.rules.some((r) => r.sourceUrl === ruleSet.generalSourceUrl)).toBe(true)
+  })
+
+  test('a continue-outcome rule never needs result-screen proof; its guidance lives in the hint', () => {
+    const vet = ruleSet.rules.find((r) => r.id === 'veteran_info')
+    expect(vet?.outcomeIfYes).toBe('continue')
+    expect(vet?.hint_en).toContain('go back and answer yes')
+  })
 })

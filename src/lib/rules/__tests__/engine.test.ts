@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest'
 import { parseRuleSet } from '../schema'
-import { displayOutcome, goBack, nextStep, ruleText, type Answers } from '../engine'
+import { activeRules, californiaDate, displayOutcome, goBack, nextStep, ruleText, type Answers } from '../engine'
 
 const r = (id: string, kind: string, outcomeIfYes: string, confidence = 'confirmed') => ({
   id, question_en: `${id}?`, question_es: id === 'age' ? '¿edad?' : null, kind, outcomeIfYes,
   proofThatHelps_en: 'proof', proofThatHelps_es: id === 'age' ? 'prueba' : null,
   sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence })
 const set = (reviewedAt: string | null = null) => parseRuleSet({
-  version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null,
+  version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null, generalSourceUrl: 'https://example.gov/g',
   county: { name: 'SC', phone: '000', sourceUrl: 'https://example.gov' },
   rules: [r('age', 'scope', 'not_subject'), r('pregnant', 'exemption', 'likely_exempt'),
           r('shaky', 'exemption', 'likely_exempt', 'unclear'), r('veteran', 'info', 'continue'),
@@ -81,4 +81,69 @@ describe('ruleText', () => {
   })
   test('english never flags', () =>
     expect(ruleText(set().rules[1], 'en')).toMatchObject({ questionFallback: false, proofFallback: false }))
+})
+
+// A set with a time-limited rule between age and pregnant, like waived_county_scope in the real file.
+const timed = () => parseRuleSet({
+  version: 't', reviewedAt: null, reviewer: null, generalSourceUrl: 'https://example.gov/g',
+  county: { name: 'SC', phone: '000', sourceUrl: 'https://example.gov' },
+  rules: [r('age', 'scope', 'not_subject'), { ...r('waived', 'scope', 'not_subject'), validUntil: '2026-10-31' },
+          r('pregnant', 'exemption', 'likely_exempt'), r('meeting', 'info', 'meeting_requirement')] })
+// California dates: Oct 31 is still in effect all day long in Los Angeles.
+const OCT31_NOON = new Date('2026-10-31T12:00:00-07:00')
+const OCT31_LATE = new Date('2026-11-01T06:30:00Z') // 23:30 on Oct 31 in California (PDT)
+const NOV1 = new Date('2026-11-01T09:00:00-07:00')
+
+describe('validUntil', () => {
+  test('californiaDate uses the California calendar date', () => {
+    expect(californiaDate(OCT31_LATE)).toBe('2026-10-31')
+    expect(californiaDate(NOV1)).toBe('2026-11-01')
+  })
+  test('the rule is asked on or before its date', () => {
+    expect(nextStep(timed(), { age: 'no' }, OCT31_NOON)).toMatchObject({ type: 'question', rule: { id: 'waived' }, index: 1, total: 4 })
+    expect(nextStep(timed(), { age: 'no' }, OCT31_LATE)).toMatchObject({ type: 'question', rule: { id: 'waived' } })
+    expect(nextStep(timed(), { age: 'no', waived: 'yes' }, OCT31_NOON)).toMatchObject({ outcome: 'not_subject', ruleId: 'waived' })
+  })
+  test('the rule is skipped after its date, as if it were not in the list', () => {
+    expect(activeRules(timed(), NOV1).map((x) => x.id)).toEqual(['age', 'pregnant', 'meeting'])
+    expect(nextStep(timed(), { age: 'no' }, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' }, index: 1, total: 3 })
+  })
+  test('a stale answer to a skipped rule is ignored', () =>
+    expect(nextStep(timed(), { age: 'no', waived: 'yes' }, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } }))
+  test('all-no after the date is subject without asking the skipped rule', () =>
+    expect(nextStep(timed(), { age: 'no', pregnant: 'no', meeting: 'no' }, NOV1)).toEqual({ type: 'result', outcome: 'subject', ruleId: null }))
+  test('goBack from the question after a skipped rule returns to the rule before it', () => {
+    const back = goBack(timed(), { age: 'no' }, NOV1)
+    expect(back).toEqual({})
+    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'age' } })
+  })
+  test('goBack from a result across a skipped rule undoes the deciding answer', () => {
+    const back = goBack(timed(), { age: 'no', pregnant: 'yes' }, NOV1)
+    expect(back).toEqual({ age: 'no' })
+    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } })
+  })
+  test('goBack two steps across a skipped rule', () => {
+    const back = goBack(timed(), { age: 'no', pregnant: 'no' }, NOV1)
+    expect(back).toEqual({ age: 'no' })
+    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } })
+  })
+  test('goBack before the date still steps through the timed rule', () =>
+    expect(goBack(timed(), { age: 'no', waived: 'no' }, OCT31_NOON)).toEqual({ age: 'no' }))
+  test('goBack from the all-no result after the date drops the last active answer', () =>
+    expect(goBack(timed(), { age: 'no', pregnant: 'no', meeting: 'no' }, NOV1)).toEqual({ age: 'no', pregnant: 'no' }))
+})
+
+describe('ruleText hints and absent proof', () => {
+  const base = {
+    id: 'vet', question_en: 'Vet?', question_es: '¿Vet?', kind: 'info', outcomeIfYes: 'continue',
+    sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence: 'confirmed',
+  } as const
+  test('spanish hint when present', () =>
+    expect(ruleText({ ...base, hint_en: 'hint', hint_es: 'pista' }, 'es')).toMatchObject({ hint: 'pista', hintFallback: false }))
+  test('missing spanish hint falls back to english and flags it', () =>
+    expect(ruleText({ ...base, hint_en: 'hint' }, 'es')).toMatchObject({ hint: 'hint', hintFallback: true }))
+  test('no hint and no proof are null, never flagged', () =>
+    expect(ruleText(base, 'es')).toMatchObject({ hint: null, proof: null, hintFallback: false, proofFallback: false }))
+  test('english hint', () =>
+    expect(ruleText({ ...base, hint_en: 'hint', hint_es: 'pista' }, 'en')).toMatchObject({ hint: 'hint', hintFallback: false }))
 })
