@@ -28,7 +28,7 @@ export function buttonClasses({
   return [
     sizeClass,
     widthClass,
-    "rounded-2xl px-6 text-lg font-semibold flex items-center justify-center transition-colors",
+    "rounded-2xl px-6 text-lg font-semibold text-center flex items-center justify-center transition-colors",
     variantClass,
     className,
   ]
