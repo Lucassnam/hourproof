@@ -14,6 +14,7 @@ const TOKEN_NAMES = [
   "pace",
   "signal",
   "danger",
+  "border",
 ] as const;
 
 function extractBlock(css: string, selector: string): string {
@@ -38,13 +39,13 @@ const rootBlock = extractTokens(extractBlock(css, ":root"));
 const darkBlock = extractTokens(extractBlock(css, '[data-theme="dark"]'));
 
 describe("css-sync", () => {
-  test(":root block declares all 9 tokens", () => {
+  test(":root block declares all tokens", () => {
     for (const name of TOKEN_NAMES) {
       expect(rootBlock).toHaveProperty(name);
     }
   });
 
-  test('[data-theme="dark"] block declares all 9 tokens', () => {
+  test('[data-theme="dark"] block declares all tokens', () => {
     for (const name of TOKEN_NAMES) {
       expect(darkBlock).toHaveProperty(name);
     }

@@ -45,7 +45,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={label}
-      className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full bg-surface-2 text-text"
+      className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-2 border-border bg-surface-2 text-text"
     >
       {mode === "dark" ? <MoonIcon /> : <SunIcon />}
     </button>

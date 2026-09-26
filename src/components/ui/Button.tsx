@@ -1,5 +1,5 @@
-"use client";
-
+// No "use client": this module has no hooks, so Server Components (the home page) can call
+// buttonClasses() directly, and Client Components can still render <Button>.
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export type ButtonVariant = "primary" | "ghost";
@@ -21,7 +21,9 @@ export function buttonClasses({
   const widthClass = fullWidth ? "w-full" : "";
   const variantClass =
     variant === "primary"
-      ? "bg-surface-2 text-text"
+      ? // The 2px outline in the `border` token (>= 3:1 on every background) is what makes
+        // these read as buttons; the fill alone is only ~1.05:1 against the page.
+        "bg-surface-2 text-text border-2 border-border"
       : "bg-transparent text-text-muted underline decoration-2 underline-offset-4";
   return [
     sizeClass,

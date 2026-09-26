@@ -12,3 +12,11 @@ for (const mode of ["light", "dark"] as const)
         test(`${fg} on ${bg} >= 4.5`, () =>
           expect(contrast(tokens[mode][fg], tokens[mode][bg])).toBeGreaterThanOrEqual(4.5));
   });
+
+// Non-text pair (WCAG 1.4.11): button outlines must stand out from every background.
+for (const mode of ["light", "dark"] as const)
+  describe(`${mode} border (non-text)`, () => {
+    for (const bg of BG)
+      test(`border on ${bg} >= 3.0`, () =>
+        expect(contrast(tokens[mode].border, tokens[mode][bg])).toBeGreaterThanOrEqual(3.0));
+  });

@@ -10,6 +10,7 @@
   --pace: #9a5b00;
   --signal: #5b4bdb;
   --danger: #b42318;
+  --border: #768091;
 }
 
 [data-theme="dark"] {
@@ -22,6 +23,7 @@
   --pace: #ffb547;
   --signal: #8b7cff;
   --danger: #ff6b6b;
+  --border: #6b7688;
 }
 
 @theme inline {
@@ -34,6 +36,7 @@
   --color-pace: var(--pace);
   --color-signal: var(--signal);
   --color-danger: var(--danger);
+  --color-border: var(--border);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-plus-jakarta-sans), system-ui, sans-serif;
 }
@@ -45,8 +48,11 @@ body {
   font-family: var(--font-sans);
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
+/* In the base layer so utilities (e.g. font-sans on the "What proof helps" h2) can override it. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
 }

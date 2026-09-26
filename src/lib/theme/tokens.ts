@@ -9,6 +9,8 @@ export const tokens = {
     pace: "#FFB547",
     signal: "#8B7CFF",
     danger: "#FF6B6B",
+    // Non-text UI boundary (button outlines): >= 3:1 against bg, surface and surface-2.
+    border: "#6B7688",
   },
   light: {
     bg: "#F6F7F9",
@@ -20,6 +22,7 @@ export const tokens = {
     pace: "#9A5B00",
     signal: "#5B4BDB",
     danger: "#B42318",
+    border: "#768091",
   },
 } as const;
 
