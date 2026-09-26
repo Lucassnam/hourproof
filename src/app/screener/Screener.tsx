@@ -91,11 +91,11 @@ export function Screener() {
 
   if (step.type === "result") {
     const outcome = displayOutcome(ruleSet, step);
-    // "Because you answered yes" only makes sense when the answer that produced this
-    // result actually WAS "yes" (e.g. ask_county can also be reached by answering
-    // "not sure" to any question, and it would be wrong to tell the user they said yes).
-    const answeredYes = step.ruleId !== null && answers[step.ruleId] === "yes";
-    const rule = answeredYes ? ruleSet.rules.find((r) => r.id === step.ruleId) ?? null : null;
+    const rule = step.ruleId ? ruleSet.rules.find((r) => r.id === step.ruleId) ?? null : null;
+    // The rule can be attached to this result via a "yes" answer (e.g. an exemption) or
+    // an "unsure" answer (ask_county is reachable from unsure on ANY question). Result
+    // needs to know which, so it never claims the user said yes when they said unsure.
+    const answer = step.ruleId ? answers[step.ruleId] : undefined;
 
     return (
       <Screen>
@@ -103,6 +103,7 @@ export function Screener() {
         <Result
           outcome={outcome}
           rule={rule}
+          answer={answer}
           county={ruleSet.county}
           lang={locale}
           headingRef={headingRef}

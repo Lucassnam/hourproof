@@ -7,7 +7,8 @@
     "startOver": "Start over",
     "callCounty": "Call your county: {phone}",
     "english": "English",
-    "spanish": "Español"
+    "spanish": "Español",
+    "source": "Source"
   },
   "home": {
     "title": "See if the CalFresh work rule applies to you",
@@ -21,6 +22,7 @@
   },
   "result": {
     "becauseYes": "You answered yes to: {question}",
+    "becauseUnsure": "You weren't sure about: {question}",
     "notDecision": "This is not a decision. Only your county can decide.",
     "not_subject": {
       "title": "The rule likely doesn't apply to you.",

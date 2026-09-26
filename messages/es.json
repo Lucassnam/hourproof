@@ -7,7 +7,8 @@
     "startOver": "Empezar de nuevo",
     "callCounty": "Llame a su condado: {phone}",
     "english": "English",
-    "spanish": "Español"
+    "spanish": "Español",
+    "source": "Fuente"
   },
   "home": {
     "title": "Vea si la regla de trabajo de CalFresh le aplica a usted",
@@ -21,6 +22,7 @@
   },
   "result": {
     "becauseYes": "Usted respondió que sí a: {question}",
+    "becauseUnsure": "No estaba seguro sobre: {question}",
     "notDecision": "Esto no es una decisión. Solo su condado puede decidir.",
     "not_subject": {
       "title": "Es probable que la regla no le aplique a usted.",

@@ -3,13 +3,19 @@
 import type { RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { ruleText } from "@/lib/rules/engine";
-import type { DisplayOutcome, Lang } from "@/lib/rules/engine";
+import type { Answer, DisplayOutcome, Lang } from "@/lib/rules/engine";
 import type { Rule, County } from "@/lib/rules/schema";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClasses } from "@/components/ui/Button";
+
+function telHref(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return `tel:+1${digits}`;
+}
 
 export function Result({
   outcome,
   rule,
+  answer,
   county,
   lang,
   headingRef,
@@ -17,6 +23,7 @@ export function Result({
 }: {
   outcome: DisplayOutcome;
   rule: Rule | null;
+  answer: Answer | undefined;
   county: County;
   lang: Lang;
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -38,7 +45,11 @@ export function Result({
 
       {rule && ruleTexts && (
         <div className="rounded-2xl bg-surface-2 p-4">
-          <p className="text-base text-text-muted">{rt("becauseYes", { question: ruleTexts.question })}</p>
+          <p className="text-base text-text-muted">
+            {answer === "unsure"
+              ? rt("becauseUnsure", { question: ruleTexts.question })
+              : rt("becauseYes", { question: ruleTexts.question })}
+          </p>
           <p className="mt-3 font-semibold text-text">{st("whatProofHelps")}</p>
           <p className="text-base text-text">
             {ruleTexts.proof}
@@ -49,21 +60,19 @@ export function Result({
 
       <p className="text-base font-semibold text-text-muted">{rt("notDecision")}</p>
 
-      <div className="rounded-2xl bg-surface p-4">
+      <div className="rounded-2xl bg-surface p-4 flex flex-col gap-3">
         <p className="text-lg font-semibold text-text">{county.name}</p>
-        <a href={`tel:${county.phone}`} className="inline-block py-1 text-lg text-signal underline">
+        <a href={telHref(county.phone)} className={buttonClasses({ size: "lg", fullWidth: true })}>
           {t("callCounty", { phone: county.phone })}
         </a>
-        <div>
-          <a
-            href={sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block py-1 text-base text-text-muted underline"
-          >
-            Source
-          </a>
-        </div>
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block py-1 text-base text-text-muted underline"
+        >
+          {t("source")}
+        </a>
       </div>
 
       <Button variant="ghost" onClick={onStartOver}>

@@ -103,6 +103,32 @@ test("Unsure on question 1 leads to the ask-county result with a tel: link", asy
 
   const text = await bodyText(page);
   expect(text).toContain("Your county can");
+  expect(text).toContain("What proof helps");
+  await expect(page.getByText("What proof helps")).toBeVisible();
+
   const telLink = page.locator('a[href^="tel:"]');
   await expect(telLink).toBeVisible();
+  await expect(telLink).toHaveAttribute("href", "tel:+14087583800");
+});
+
+test("A blocked sessionStorage does not break the screener", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (err) => errors.push(err.message));
+
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "sessionStorage", {
+      configurable: true,
+      get() {
+        throw new Error("blocked");
+      },
+    });
+  });
+
+  await goToScreener(page);
+
+  await expect(page.getByText("Question 1 of")).toBeVisible();
+  await answer(page, "No");
+  await expect(page.getByText("Question 2 of")).toBeVisible();
+
+  expect(errors).toEqual([]);
 });
