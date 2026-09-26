@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: light square so the icon reads on any home screen -->
+  <rect width="512" height="512" fill="#F6F7F9" />
+
+  <!-- Clock ring, drawn as an arc that leaves a clean, wide gap at
+       bottom-right for the checkmark (dashoffset/dasharray tuned so the ring
+       stroke ends well clear of the check, not touching it), in proof green -->
+  <circle
+    cx="256" cy="256" r="176"
+    fill="none"
+    stroke="#127A52"
+    stroke-width="34"
+    stroke-linecap="round"
+    stroke-dasharray="760 1200"
+    stroke-dashoffset="0"
+    transform="rotate(-90 256 256)"
+  />
+
+  <!-- Clock hands, meeting at center, pointing to ~10 and ~2 (short "hour" look) -->
+  <line x1="256" y1="256" x2="256" y2="146" stroke="#127A52" stroke-width="26" stroke-linecap="round" />
+  <line x1="256" y1="256" x2="336" y2="256" stroke="#127A52" stroke-width="26" stroke-linecap="round" />
+
+  <!-- Checkmark sitting inside the ring's gap as its own separate, upright
+       mark (not tangent to the ring, not touching its ends) so it reads
+       unambiguously as a check rather than a continuation of the arc -->
+  <path
+    d="M 322 388 L 358 424 L 434 340"
+    fill="none"
+    stroke="#127A52"
+    stroke-width="30"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

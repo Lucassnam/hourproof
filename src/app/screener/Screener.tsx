@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ruleSet } from "@/lib/rules/load";
 import { nextStep, goBack, displayOutcome, ruleText } from "@/lib/rules/engine";
 import type { Answer, Answers, Lang } from "@/lib/rules/engine";
+import type { RuleSet } from "@/lib/rules/schema";
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { ChoiceButtons } from "@/components/ui/ChoiceButtons";
@@ -40,7 +40,7 @@ function clearStoredAnswers() {
   }
 }
 
-export function Screener() {
+export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
   const t = useTranslations("common");
   const st = useTranslations("screener");
   const locale = useLocale() as Lang;
