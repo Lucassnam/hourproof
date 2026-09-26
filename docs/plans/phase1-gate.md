@@ -11,7 +11,7 @@ Task 7's brief calls for a Vercel preview deploy in Step 3. The controller ruled
 no `git push`. The first deploy needs the user's explicit approval, since it
 creates a public URL under their Vercel account.
 
-**Preview URL: pending user approval.**
+**Deployed 2026-09-26 by the user (`vercel deploy --yes`, Vercel account cooliojuicyj, project lucas-nams-projects/hourproof).** Deployment: https://hourproof-df5ma5hlu-lucas-nams-projects.vercel.app (status Ready; Vercel marked it Production because it was the project's first CLI deploy). Project alias: https://hourproof-lucas-nams-projects.vercel.app. Both are behind Vercel Authentication (302 to vercel.com/sso-api), so only signed-in team members can open them, and the automated e2e can't reach them. The real-phone check is still pending: the user opens the alias on their phone while signed in to Vercel. Before judging (Phase 6), turn off Deployment Protection or add a public domain. Note: https://hourproof.vercel.app is an unrelated app, not ours.
 
 The commands the deploy will use, once approved:
 
