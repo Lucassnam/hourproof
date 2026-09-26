@@ -20,4 +20,4 @@ The app runs on `http://localhost:7050`.
 npm exec -- node -v
 ```
 
-This must print `v20.9` or higher (currently v24.x), never `v18.20.8`. If `postinstall` did not run automatically (e.g. it ran in the middle of a two-step install), run `npm run postinstall` once by hand.
+This must print `v20.9` or higher (currently v24.x), never `v18.20.8`. `npm ci` and a bare `npm i` (no package name) run the root `postinstall` script automatically, so the shim is created for you. **`npm i <package>` (installing/adding a specific package) does not run root lifecycle scripts** — if you add a dependency and later see `v18.20.8` from `npm exec -- node -v`, run `npm run postinstall` once by hand to recreate the shim.
