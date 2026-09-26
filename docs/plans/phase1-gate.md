@@ -159,12 +159,12 @@ against the same file).
 `node scripts/measure-js.mjs` exit code: `0` ("all measured routes are
 within the 200 KB JS budget").
 
-`next start` does not gzip responses in this project (no compression
-middleware configured), so the "transferred" and "decoded" numbers above
-differ only because "transferred" also counts response headers per file;
-the actual wire bytes would be smaller behind a compressing host/CDN (e.g.
-Vercel, which gzips/brotlis by default) — the 149-150 KB figures here are
-effectively an uncompressed-transport upper bound, not a best case.
+**Correction (see Fix round 1 below):** this originally said `next start`
+does not gzip responses. That was wrong — verified with
+`curl -H "Accept-Encoding: gzip"`, `next start` does gzip by default
+(`Content-Encoding: gzip` on both the document and JS chunk responses), which
+is exactly why "transferred" (149.9 KB) and "decoded" (494.0 KB) differ by
+~3.3x here — that gap is the compression ratio, not header overhead.
 
 Full per-file breakdown from the second pass:
 
@@ -265,9 +265,11 @@ icon isn't clipped when the OS applies its own shape.
 - `public/icon-192.png`, `public/icon-512.png`, `public/icon-512-maskable.png` (new)
 - `scripts/icon-source.svg`, `scripts/icon-source-maskable.svg` (new — source
   SVGs, kept for future re-rendering)
-- `scripts/measure-js.mjs` (new — re-runnable JS budget script)
+- `scripts/measure-js.mjs` (new, then fix round 1: now reports document/CSS/
+  font/image/total bytes per route and manages its own `npm start` server)
+- `playwright.config.ts` (fix round 1: `reuseExistingServer: false`)
 - `docs/plans/phase1-gate.md` (this file)
-- `docs/AI-USE.md` (new row for this task)
+- `docs/AI-USE.md` (new row for this task, then fix round 1 row)
 
 ## Screenshots
 
@@ -299,6 +301,166 @@ per the controller's no-deploy ruling above).
 
 **Pending user approval.** See "Controller ruling on this task" above for
 the exact `vercel link` / `vercel deploy` commands queued for when approved.
+
+## Fix round 1 (2026-09-25)
+
+Two Important findings from review, both addressed per the controller's rulings.
+
+### Finding 1: JS-only number hid where the rules data went
+
+The original measurement only reported JS bytes, so the 241.4 KB → 147.7 KB
+drop on `/screener` looked like the ~15 KB rules JSON had been eliminated,
+when really it moved from a JS chunk into the RSC/HTML document payload
+(the server-loaded `ruleSet` prop gets serialized into `/screener`'s
+document response instead of being re-validated/re-embedded in client JS).
+The gate report didn't measure the document response at all, so that
+relocation was invisible.
+
+**Ruling:** extend `scripts/measure-js.mjs` to report, per route: JS KB,
+document (HTML) KB, and total KB across every response (JS + document + CSS
++ fonts + images + other). No change to the 200 KB budget itself, which
+stays JS-only per the spec.
+
+**Re-measured** (`node scripts/measure-js.mjs`, full output below):
+
+| Route | JS KB | Document KB | Total KB |
+|---|---|---|---|
+| `/` | 149.9 | 4.9 | 339.4 |
+| `/screener` | 147.7 | 8.1 | 339.6 |
+
+Where the rules data now lives: it's inlined in the `/screener` document
+response (RSC flight data embedded in the served HTML) rather than in a
+separate JS chunk — `/screener`'s document is 8.1 KB vs. `/`'s 4.9 KB, a
+3.2 KB difference. That's smaller than the raw ~15 KB JSON because the
+document response is gzip-compressed (see the correction above — `next
+start` does gzip by default, confirmed with `curl -H "Accept-Encoding:
+gzip"`, `Content-Encoding: gzip` present on both routes' document
+responses). Total page weight (fonts + JS + CSS + document, all shared
+except the document itself) is effectively identical between the two
+routes — 339.4 KB vs. 339.6 KB — which is the honest picture: the fix in
+Task 7 removed the zod/schema-validation *code* from the client bundle
+(a real win, that code doesn't need to run twice), but the *data* itself
+still has to reach the browser one way or another, and does.
+
+Full re-measurement output:
+
+```
+Page weight check (base: http://localhost:7050, JS budget: 200 KB/route)
+
+Route /
+  JS:        149.9 KB (decoded: 494.0 KB)
+  Document:  4.9 KB
+  CSS:       4.2 KB
+  Fonts:     179.6 KB
+  Images:    0.0 KB
+  Other:     0.9 KB
+  TOTAL:     339.4 KB (all response types, 15 responses)
+        83.6 KB  [font]  /_next/static/media/1bffadaabf893a1e-s.p.3-6t-g6q0vh0a.woff2
+        70.4 KB  [js]  /_next/static/chunks/0bma92pht_c97.js
+        47.6 KB  [font]  /_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2
+        46.4 KB  [js]  /_next/static/chunks/1z99mlp5cofct.js
+        26.9 KB  [font]  /_next/static/media/fba5a26ea33df6a3-s.p.18rizl4rsrl42.woff2
+        21.5 KB  [font]  /_next/static/media/1a099d89ee94ee96-s.p.35a5cae5tspm2.woff2
+        12.2 KB  [js]  /_next/static/chunks/3zpv-smfm7y5p.js
+         7.5 KB  [js]  /_next/static/chunks/1u5zan5bs9a7v.js
+         5.2 KB  [js]  /_next/static/chunks/27nk6dt-wmy40.js
+         4.9 KB  [document]  /
+         4.2 KB  [css]  /_next/static/chunks/2bmz_yhjnac7q.css
+         4.1 KB  [js]  /_next/static/chunks/turbopack-3ookby65335ia.js
+         4.0 KB  [js]  /_next/static/chunks/2_b75x8woym56.js
+         0.5 KB  [other]  /screener?_rsc=5CB68i4pnAekjehf
+         0.4 KB  [other]  /screener?_rsc=tXyZJ52UQVBCVsD3
+
+Route /screener
+  JS:        147.7 KB (decoded: 489.1 KB)
+  Document:  8.1 KB
+  CSS:       4.2 KB
+  Fonts:     179.6 KB
+  Images:    0.0 KB
+  Other:     0.0 KB
+  TOTAL:     339.6 KB (all response types, 13 responses)
+        83.6 KB  [font]  /_next/static/media/1bffadaabf893a1e-s.p.3-6t-g6q0vh0a.woff2
+        70.4 KB  [js]  /_next/static/chunks/0bma92pht_c97.js
+        47.6 KB  [font]  /_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2
+        46.4 KB  [js]  /_next/static/chunks/1z99mlp5cofct.js
+        26.9 KB  [font]  /_next/static/media/fba5a26ea33df6a3-s.p.18rizl4rsrl42.woff2
+        21.5 KB  [font]  /_next/static/media/1a099d89ee94ee96-s.p.35a5cae5tspm2.woff2
+        12.2 KB  [js]  /_next/static/chunks/3zpv-smfm7y5p.js
+         8.1 KB  [document]  /screener
+         7.5 KB  [js]  /_next/static/chunks/1u5zan5bs9a7v.js
+         4.2 KB  [css]  /_next/static/chunks/2bmz_yhjnac7q.css
+         4.1 KB  [js]  /_next/static/chunks/turbopack-3ookby65335ia.js
+         4.0 KB  [js]  /_next/static/chunks/2_b75x8woym56.js
+         3.0 KB  [js]  /_next/static/chunks/29_biy2o21244.js
+
+Summary table (paste into the gate report):
+| Route | JS KB | Document KB | Total KB |
+|---|---|---|---|
+| `/` | 149.9 | 4.9 | 339.4 |
+| `/screener` | 147.7 | 8.1 | 339.6 |
+
+RESULT: all measured routes are within the 200 KB JS budget.
+```
+
+`node scripts/measure-js.mjs` exit code: `0`.
+
+The 179.6 KB of fonts is shared across every route (Plus Jakarta Sans +
+Inter, `next/font/google`) and is loaded once per browser session, not
+per-navigation, but it's real weight worth Phase 2 attention if the fonts
+guide ever gets audited for the "old, cheap phones with slow connections"
+requirement — out of scope for this fix round, noted here for visibility
+only.
+
+### Finding 2: stale-server footgun in e2e and measure-js
+
+`playwright.config.ts` had `reuseExistingServer: !process.env.CI`, so a
+local (non-CI) `npm run e2e` would silently reuse whatever was already
+listening on :7050 instead of the build it just made — a stale build could
+pass e2e without ever being tested. `scripts/measure-js.mjs` had the same
+problem in the opposite direction: it required a server to already be
+running, started by hand, with no check that it was fresh.
+
+**Ruling:**
+- `playwright.config.ts`: set `reuseExistingServer: false`, so every
+  `npm run e2e` always starts its own fresh `npm run build && npm start`.
+- `scripts/measure-js.mjs`: now starts and stops its own `npm start`
+  (assumes `npm run build` was already run — the header comment says so).
+  It checks `:7050` is free before starting (fails with a clear error
+  naming the exact footgun if something's already there), and stops the
+  server it started in a `finally` block regardless of success or failure.
+
+**Verification, in order:**
+
+```
+$ lsof -i :7050        # before e2e — empty
+(no output, exit 1)
+
+$ npm run e2e
+...
+  7 passed (7.5s)
+(exit 0)
+
+$ lsof -i :7050        # after e2e — empty
+(no output, exit 1)
+
+$ npm run build        # fresh build for measure-js
+✓ Compiled successfully
+(exit 0)
+
+$ lsof -i :7050        # before measure-js — empty
+(no output, exit 1)
+
+$ node scripts/measure-js.mjs
+...
+RESULT: all measured routes are within the 200 KB JS budget.
+(exit 0)
+
+$ lsof -i :7050        # after measure-js — empty
+(no output, exit 1)
+```
+
+`npm test` (106/106) and `npm run typecheck` were also re-run after these
+changes; both still pass with exit `0`.
 
 ## Open items for Phase 2
 
