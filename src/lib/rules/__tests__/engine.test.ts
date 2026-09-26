@@ -4,7 +4,8 @@ import { displayOutcome, goBack, nextStep, ruleText, type Answers } from '../eng
 
 const r = (id: string, kind: string, outcomeIfYes: string, confidence = 'confirmed') => ({
   id, question_en: `${id}?`, question_es: id === 'age' ? '¿edad?' : null, kind, outcomeIfYes,
-  proofThatHelps_en: 'proof', sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence })
+  proofThatHelps_en: 'proof', proofThatHelps_es: id === 'age' ? 'prueba' : null,
+  sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence })
 const set = (reviewedAt: string | null = null) => parseRuleSet({
   version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null,
   county: { name: 'SC', phone: '000', sourceUrl: 'https://example.gov' },
@@ -62,7 +63,22 @@ describe('displayOutcome (safety gate)', () => {
 })
 
 describe('ruleText', () => {
-  test('spanish when present', () => expect(ruleText(set().rules[0], 'es')).toMatchObject({ question: '¿edad?', fallback: false }))
+  test('spanish when present', () =>
+    expect(ruleText(set().rules[0], 'es')).toMatchObject({
+      question: '¿edad?', proof: 'prueba', questionFallback: false, proofFallback: false,
+    }))
   test('falls back to english and flags it', () =>
-    expect(ruleText(set().rules[1], 'es')).toMatchObject({ question: 'pregnant?', fallback: true }))
+    expect(ruleText(set().rules[1], 'es')).toMatchObject({
+      question: 'pregnant?', questionFallback: true, proofFallback: true,
+    }))
+  test('spanish question, english proof', () => {
+    const rule = {
+      id: 'mixed', question_en: 'mixed?', question_es: '¿mixed?', kind: 'exemption', outcomeIfYes: 'likely_exempt',
+      proofThatHelps_en: 'proof', proofThatHelps_es: null, sourceUrl: 'https://example.gov', sourceQuote: 'q',
+      confidence: 'confirmed',
+    } as const
+    expect(ruleText(rule, 'es')).toMatchObject({ questionFallback: false, proofFallback: true })
+  })
+  test('english never flags', () =>
+    expect(ruleText(set().rules[1], 'en')).toMatchObject({ questionFallback: false, proofFallback: false }))
 })

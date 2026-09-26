@@ -43,5 +43,10 @@ export function displayOutcome(set: RuleSet, step: Extract<Step, { type: 'result
 export function ruleText(rule: Rule, lang: Lang) {
   const q = lang === 'es' ? rule.question_es : rule.question_en
   const p = lang === 'es' ? rule.proofThatHelps_es : rule.proofThatHelps_en
-  return { question: q ?? rule.question_en, proof: p ?? rule.proofThatHelps_en, fallback: lang === 'es' && !q }
+  return {
+    question: q ?? rule.question_en,
+    proof: p ?? rule.proofThatHelps_en,
+    questionFallback: lang === 'es' && !rule.question_es,
+    proofFallback: lang === 'es' && !rule.proofThatHelps_es,
+  }
 }
