@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 function readStoredTheme(): "dark" | "light" {
   try {
@@ -19,6 +20,7 @@ function writeStoredTheme(mode: "dark" | "light") {
 }
 
 export function ThemeToggle() {
+  const t = useTranslations("theme");
   const [mode, setMode] = useState<"dark" | "light">("light");
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function ThemeToggle() {
     writeStoredTheme(next);
   };
 
-  const label = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  const label = mode === "dark" ? t("toLight") : t("toDark");
 
   return (
     <button

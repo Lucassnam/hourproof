@@ -1,0 +1,54 @@
+{
+  "common": {
+    "yes": "Sí",
+    "no": "No",
+    "notSure": "No estoy seguro",
+    "back": "Atrás",
+    "startOver": "Empezar de nuevo",
+    "callCounty": "Llame a su condado: {phone}",
+    "english": "English",
+    "spanish": "Español"
+  },
+  "home": {
+    "title": "Vea si la regla de trabajo de CalFresh le aplica a usted",
+    "subtitle": "Responda unas preguntas cortas. Toma unos 2 minutos.",
+    "cta": "Vea si la regla le aplica"
+  },
+  "screener": {
+    "questionOf": "Pregunta {n} de {total}",
+    "englishOnly": "(solo en inglés)",
+    "whatProofHelps": "Qué prueba ayuda"
+  },
+  "result": {
+    "becauseYes": "Usted respondió que sí a: {question}",
+    "notDecision": "Esto no es una decisión. Solo su condado puede decidir.",
+    "not_subject": {
+      "title": "Es probable que la regla no le aplique a usted.",
+      "body": "No necesita reportar horas de trabajo para esta regla en este momento."
+    },
+    "possibly_exempt": {
+      "title": "Es posible que usted esté exento. Pida a su condado que lo confirme.",
+      "body": "Cuéntele a su condado su situación. Ellos confirmarán si usted está exento."
+    },
+    "likely_exempt": {
+      "title": "Es probable que usted esté exento.",
+      "body": "Según lo que nos dijo, probablemente no necesita cumplir con la regla de trabajo."
+    },
+    "meeting_requirement": {
+      "title": "La regla le aplica a usted, y en este momento la está cumpliendo. Guarde prueba de cada hora.",
+      "body": "Guarde registros de cada hora de trabajo, voluntariado o un programa aprobado."
+    },
+    "subject": {
+      "title": "Es probable que la regla le aplique a usted. Necesita 80 horas al mes de trabajo, voluntariado o un programa aprobado.",
+      "body": "Empiece a llevar registro de sus horas ahora para tener prueba si su condado se lo pide."
+    },
+    "ask_county": {
+      "title": "No podemos saberlo con sus respuestas. Su condado sí puede.",
+      "body": "Comuníquese con su condado para saber si la regla le aplica a usted."
+    }
+  },
+  "theme": {
+    "toDark": "Cambiar a modo oscuro",
+    "toLight": "Cambiar a modo claro"
+  }
+}

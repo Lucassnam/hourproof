@@ -1,0 +1,54 @@
+{
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "notSure": "Not sure",
+    "back": "Back",
+    "startOver": "Start over",
+    "callCounty": "Call your county: {phone}",
+    "english": "English",
+    "spanish": "Español"
+  },
+  "home": {
+    "title": "See if the CalFresh work rule applies to you",
+    "subtitle": "Answer a few short questions. It takes about 2 minutes.",
+    "cta": "Check if the rule applies to you"
+  },
+  "screener": {
+    "questionOf": "Question {n} of {total}",
+    "englishOnly": "(English only)",
+    "whatProofHelps": "What proof helps"
+  },
+  "result": {
+    "becauseYes": "You answered yes to: {question}",
+    "notDecision": "This is not a decision. Only your county can decide.",
+    "not_subject": {
+      "title": "The rule likely doesn't apply to you.",
+      "body": "You don't need to report work hours for this rule right now."
+    },
+    "possibly_exempt": {
+      "title": "You may be exempt. Ask your county to confirm.",
+      "body": "Tell your county about your situation. They will confirm if you are exempt."
+    },
+    "likely_exempt": {
+      "title": "You're likely exempt.",
+      "body": "Based on what you told us, you likely don't need to meet the work rule."
+    },
+    "meeting_requirement": {
+      "title": "The rule applies to you, and right now you're meeting it. Keep proof of every hour.",
+      "body": "Save records for every hour of work, volunteering, or an approved program."
+    },
+    "subject": {
+      "title": "The rule likely applies to you. You need 80 hours a month of work, volunteering or an approved program.",
+      "body": "Start tracking your hours now so you have proof if your county asks."
+    },
+    "ask_county": {
+      "title": "We can't tell from your answers. Your county can.",
+      "body": "Contact your county for help figuring out if the rule applies to you."
+    }
+  },
+  "theme": {
+    "toDark": "Switch to dark mode",
+    "toLight": "Switch to light mode"
+  }
+}
