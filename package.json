@@ -6,6 +6,7 @@
   },
   "scripts": {
     "postinstall": "ln -sf \"$npm_node_execpath\" node_modules/.bin/node",
+    "prebuild": "vitest run src/lib/rules",
     "dev": "next dev -p 7050",
     "build": "next build",
     "start": "next start -p 7050",
