@@ -462,6 +462,77 @@ $ lsof -i :7050        # after measure-js — empty
 `npm test` (106/106) and `npm run typecheck` were also re-run after these
 changes; both still pass with exit `0`.
 
+## Fix round 2 (2026-09-25)
+
+One Important finding from re-review, addressed per the controller's ruling.
+
+### Finding: SIGTERM to `npm` doesn't guarantee `next` dies with it
+
+`scripts/measure-js.mjs` spawned `npm start` and called `child.kill("SIGTERM")`
+to stop it. That sends SIGTERM only to the `npm` process; `npm start` runs
+`next start` as its own child process, and whether `next` receives the
+signal depends on npm forwarding it. If that forwarding doesn't happen (npm
+version differences, timing, npm exiting before it relays the signal), the
+orphaned `next` process keeps listening on :7050 after the script exits —
+exactly the stale-server footgun fix round 1 was trying to eliminate, just
+moved one level down.
+
+**Ruling:** spawn with `{ detached: true }` (making `npm start` the leader
+of its own process group) and kill the whole group with
+`process.kill(-child.pid, 'SIGTERM')` (negative pid targets the group),
+wrapped in try/catch for `ESRCH` (group already gone). Do this on both the
+success and error paths. Wait up to ~5s for `:7050` to stop responding, and
+escalate to `SIGKILL` on the group if it's still up.
+
+**Applied** in `scripts/measure-js.mjs`:
+- `spawn("npm", ["start"], { ..., detached: true })`
+- New `killGroup(child, signal)` helper: `process.kill(-child.pid, signal)`,
+  catching and ignoring `ESRCH`.
+- `stopServer` (now `async`) sends SIGTERM to the group, then polls
+  `:7050` every 250ms for up to `SERVER_STOP_TIMEOUT_MS` (5000ms); if the
+  port is still answering after that, it logs a warning and sends SIGKILL
+  to the group.
+- `startServer`'s error path (when the server never comes up) now calls
+  `await stopServer(child)` instead of `child.kill("SIGTERM")`, so a failed
+  startup also cleans up the whole group, not just the `npm` process.
+- `main()`'s `finally` block now does `await stopServer(server)` (was a
+  fire-and-forget `stopServer(server)` call before).
+
+**Verification, in the exact order requested:**
+
+```
+$ node scripts/measure-js.mjs
+[... full output identical to the Fix round 1 measurement above, unchanged ...]
+RESULT: all measured routes are within the 200 KB JS budget.
+(exit 0)
+
+$ lsof -i :7050
+(no output, exit 1)
+
+$ pgrep -fl "next start"
+(no output, exit 1)
+
+$ npm run e2e
+...
+  ✓  1 [chromium] › e2e/screener.spec.ts:99:5 › Unsure on question 1 leads to the ask-county result with a tel: link (794ms)
+  ✓  6 [chromium] › e2e/screener.spec.ts:84:5 › Spanish: shows 'Sí' and the Spanish not-a-decision line on a result (803ms)
+  ✓  3 [chromium] › e2e/screener.spec.ts:33:5 › Pregnant path shows possibly-exempt result and never shows 'likely exempt' text (846ms)
+  ✓  4 [chromium] › e2e/screener.spec.ts:68:5 › Reloading on question 3 resumes at question 3 (848ms)
+  ✓  2 [chromium] › e2e/screener.spec.ts:46:5 › Back after a result returns to the question that produced it, not the result (938ms)
+  ✓  7 [chromium] › e2e/screener.spec.ts:114:5 › A blocked sessionStorage does not break the screener (240ms)
+  ✓  5 [chromium] › e2e/screener.spec.ts:17:5 › English: answering no to everything until meeting_80_hours, then yes, shows the meeting-requirement result (1.3s)
+
+  7 passed (7.1s)
+(exit 0)
+```
+
+`lsof -i :7050` and `pgrep -fl "next start"` were both also re-checked
+immediately after the `npm run e2e` run above (Playwright's own webServer
+lifecycle, separate from `measure-js.mjs`) — both still empty.
+
+`npm test` (106/106) and `npm run typecheck` were re-run after these
+changes too; both still pass with exit `0`.
+
 ## Open items for Phase 2
 
 From `.superpowers/sdd/2026-09-25-phase1-foundation-screener/progress.md`

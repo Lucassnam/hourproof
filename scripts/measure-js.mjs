@@ -22,6 +22,19 @@
 //      doing so (fails loudly if not), and always stops the server it
 //      started in a `finally` block, even on error.
 //
+// Fix round 2 (2026-09-25), one controller-ruled finding:
+//   `npm start` runs `next start` as a *child* of the `npm` process. Sending
+//   SIGTERM to just the `npm` process relies on npm forwarding it to `next`;
+//   if that forwarding doesn't happen, `next` (and its own child server
+//   process) is orphaned and keeps listening on :7050 after this script
+//   exits. Fixed by spawning with `{ detached: true }` (so `npm start` is
+//   the leader of its own process group, not just a child of this script)
+//   and killing the whole group with `process.kill(-child.pid, signal)`
+//   (negative pid = process group) on both the success and error paths.
+//   ESRCH (group already gone) is caught and ignored. After sending
+//   SIGTERM, this script polls :7050 for up to ~5s and escalates to
+//   SIGKILL on the group if the port is still answering.
+//
 // Usage:
 //   node scripts/measure-js.mjs
 //
@@ -37,6 +50,7 @@ const BASE_URL = process.env.MEASURE_BASE_URL ?? `http://localhost:${PORT}`;
 const ROUTES = ["/", "/screener"];
 const BUDGET_KB = 200;
 const SERVER_START_TIMEOUT_MS = 60_000;
+const SERVER_STOP_TIMEOUT_MS = 5_000;
 
 function toKB(bytes) {
   return (bytes / 1024).toFixed(1);
@@ -71,9 +85,15 @@ async function startServer() {
     );
   }
 
+  // `detached: true` makes this child the leader of its own process group
+  // (its pgid equals its pid), rather than just a child of this script. That
+  // lets us kill the whole group below — `npm start` *and* the `next start`
+  // process it spawns underneath it — instead of only the `npm` process and
+  // hoping it forwards the signal down.
   const child = spawn("npm", ["start"], {
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
   });
 
   let output = "";
@@ -83,16 +103,40 @@ async function startServer() {
   try {
     await waitForServer(child, Date.now() + SERVER_START_TIMEOUT_MS);
   } catch (err) {
-    child.kill("SIGTERM");
+    await stopServer(child);
     throw new Error(`${err.message}\n--- npm start output ---\n${output}`);
   }
 
   return child;
 }
 
-function stopServer(child) {
+// Sends `signal` to the whole process group led by `child` (negative pid),
+// not just `child` itself. ESRCH means the group is already gone — that's
+// success, not an error, so it's swallowed.
+function killGroup(child, signal) {
+  try {
+    process.kill(-child.pid, signal);
+  } catch (err) {
+    if (err.code !== "ESRCH") throw err;
+  }
+}
+
+async function stopServer(child) {
   if (!child || child.exitCode !== null) return;
-  child.kill("SIGTERM");
+
+  killGroup(child, "SIGTERM");
+
+  const deadline = Date.now() + SERVER_STOP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (!(await isPortResponding())) return;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  // Still answering after ~5s of SIGTERM — escalate.
+  if (await isPortResponding()) {
+    console.error(`:${PORT} still answering ${SERVER_STOP_TIMEOUT_MS}ms after SIGTERM — sending SIGKILL to the group.`);
+    killGroup(child, "SIGKILL");
+  }
 }
 
 function classify(url, resourceType) {
@@ -213,7 +257,7 @@ async function main() {
       console.log("RESULT: all measured routes are within the 200 KB JS budget.");
     }
   } finally {
-    stopServer(server);
+    await stopServer(server);
   }
 }
 
