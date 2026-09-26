@@ -5,7 +5,7 @@
     "notSure": "Not sure",
     "back": "Back",
     "startOver": "Start over",
-    "callCounty": "Call your county: {phone}",
+    "callCounty": "Call your county: <num>{phone}</num>",
     "english": "English",
     "spanish": "Español",
     "source": "Source"
@@ -30,7 +30,7 @@
     },
     "possibly_exempt": {
       "title": "You may be exempt. Ask your county to confirm.",
-      "body": "Tell your county about your situation. They will confirm if you are exempt."
+      "body": "Tell your county about your situation. They will check whether the rule applies to you."
     },
     "likely_exempt": {
       "title": "You're likely exempt.",
@@ -41,8 +41,8 @@
       "body": "Save records for every hour of work, volunteering, or an approved program."
     },
     "subject": {
-      "title": "The rule likely applies to you. You need 80 hours a month of work, volunteering or an approved program.",
-      "body": "Start tracking your hours now so you have proof if your county asks."
+      "title": "The rule likely applies to you. At your next CalFresh renewal, you may need 80 hours a month of work, volunteering or an approved program.",
+      "body": "Start tracking your hours now so you have proof if your county asks. Ask your county when it starts for you."
     },
     "ask_county": {
       "title": "We can't tell from your answers. Your county can.",
@@ -52,5 +52,13 @@
   "theme": {
     "toDark": "Switch to dark mode",
     "toLight": "Switch to light mode"
+  },
+  "language": {
+    "label": "Language",
+    "switchToEn": "Switch to English",
+    "switchToEs": "Switch to Spanish"
+  },
+  "noscript": {
+    "message": "This screener needs JavaScript. Call your county:"
   }
 }

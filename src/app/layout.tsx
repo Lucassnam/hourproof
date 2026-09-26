@@ -9,6 +9,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "HourProof",
   description: "Check CalFresh work-requirement rules and what proof helps, on your phone.",
+  // iOS home-screen icon: 180x180 PNG rendered from scripts/icon-source.svg with
+  // `rsvg-convert -w 180 -h 180 -b "#F6F7F9"` (opaque, since iOS fills transparency black).
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 // theme-color lives on the viewport export in Next 16, not as a raw <meta>

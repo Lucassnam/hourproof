@@ -1,56 +1,54 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Screen } from "@/components/ui/Screen";
-import { Button, buttonClasses } from "@/components/ui/Button";
+import { buttonClasses } from "@/components/ui/Button";
+import { NoScriptNotice } from "@/components/ui/NoScriptNotice";
+import { ruleSet } from "@/lib/rules/load";
+import { setLocale } from "./actions";
 
-function setLocaleCookie(locale: "en" | "es") {
-  try {
-    document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}`;
-  } catch {
-    // Cookies may be blocked (e.g. private mode). Locale just won't persist across reloads.
-  }
-}
-
-export default function Home() {
-  const router = useRouter();
-  const locale = useLocale();
-  const t = useTranslations("common");
-  const ht = useTranslations("home");
-
-  const selectLocale = (next: "en" | "es") => {
-    if (next === locale) return;
-    setLocaleCookie(next);
-    router.refresh();
-  };
+// A Server Component: the language choice is a plain <form> posting to a Server Action,
+// so it works before hydration and with JavaScript off. The rules (and zod) stay on the
+// server; only the county block is used here.
+export default async function Home() {
+  const locale = await getLocale();
+  const t = await getTranslations("common");
+  const ht = await getTranslations("home");
 
   return (
-    <Screen>
-      <div className="flex gap-3">
-        <Button
-          variant={locale === "en" ? "primary" : "ghost"}
-          aria-pressed={locale === "en"}
-          onClick={() => selectLocale("en")}
-        >
-          {t("english")}
-        </Button>
-        <Button
-          variant={locale === "es" ? "primary" : "ghost"}
-          aria-pressed={locale === "es"}
-          onClick={() => selectLocale("es")}
-        >
-          {t("spanish")}
-        </Button>
-      </div>
+    <>
+      <NoScriptNotice county={ruleSet.county} />
+      <Screen languageSwitch={false}>
+        <form action={setLocale} className="flex gap-3">
+          <input type="hidden" name="returnTo" value="/" />
+          <button
+            type="submit"
+            name="locale"
+            value="en"
+            lang="en"
+            aria-pressed={locale === "en"}
+            className={buttonClasses({ variant: locale === "en" ? "primary" : "ghost" })}
+          >
+            {t("english")}
+          </button>
+          <button
+            type="submit"
+            name="locale"
+            value="es"
+            lang="es"
+            aria-pressed={locale === "es"}
+            className={buttonClasses({ variant: locale === "es" ? "primary" : "ghost" })}
+          >
+            {t("spanish")}
+          </button>
+        </form>
 
-      <h1 className="font-display text-3xl font-semibold">{ht("title")}</h1>
-      <p className="text-lg text-text-muted">{ht("subtitle")}</p>
+        <h1 className="font-display text-3xl font-semibold">{ht("title")}</h1>
+        <p className="text-lg text-text-muted">{ht("subtitle")}</p>
 
-      <Link href="/screener" className={buttonClasses({ size: "lg", fullWidth: true })}>
-        {ht("cta")}
-      </Link>
-    </Screen>
+        <Link href="/screener" className={buttonClasses({ size: "lg", fullWidth: true })}>
+          {ht("cta")}
+        </Link>
+      </Screen>
+    </>
   );
 }

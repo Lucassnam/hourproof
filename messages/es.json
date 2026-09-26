@@ -5,7 +5,7 @@
     "notSure": "No estoy seguro",
     "back": "Atrás",
     "startOver": "Empezar de nuevo",
-    "callCounty": "Llame a su condado: {phone}",
+    "callCounty": "Llame a su condado: <num>{phone}</num>",
     "english": "English",
     "spanish": "Español",
     "source": "Fuente"
@@ -22,18 +22,18 @@
   },
   "result": {
     "becauseYes": "Usted respondió que sí a: {question}",
-    "becauseUnsure": "No estaba seguro sobre: {question}",
+    "becauseUnsure": "No estaba seguro/a sobre: {question}",
     "notDecision": "Esto no es una decisión. Solo su condado puede decidir.",
     "not_subject": {
       "title": "Es probable que la regla no le aplique a usted.",
       "body": "No necesita reportar horas de trabajo para esta regla en este momento."
     },
     "possibly_exempt": {
-      "title": "Es posible que usted esté exento. Pida a su condado que lo confirme.",
-      "body": "Cuéntele a su condado su situación. Ellos confirmarán si usted está exento."
+      "title": "Es posible que usted esté exento/a. Pida a su condado que lo confirme.",
+      "body": "Cuéntele a su condado su situación. Ellos revisarán si la regla le aplica a usted."
     },
     "likely_exempt": {
-      "title": "Es probable que usted esté exento.",
+      "title": "Es probable que usted esté exento/a.",
       "body": "Según lo que nos dijo, probablemente no necesita cumplir con la regla de trabajo."
     },
     "meeting_requirement": {
@@ -41,8 +41,8 @@
       "body": "Guarde registros de cada hora de trabajo, voluntariado o un programa aprobado."
     },
     "subject": {
-      "title": "Es probable que la regla le aplique a usted. Necesita 80 horas al mes de trabajo, voluntariado o un programa aprobado.",
-      "body": "Empiece a llevar registro de sus horas ahora para tener prueba si su condado se lo pide."
+      "title": "Es probable que la regla le aplique a usted. En su próxima renovación de CalFresh, es posible que necesite 80 horas al mes de trabajo, voluntariado o un programa aprobado.",
+      "body": "Empiece a llevar registro de sus horas ahora para tener prueba si su condado se lo pide. Pregúntele a su condado cuándo empieza para usted."
     },
     "ask_county": {
       "title": "No podemos saberlo con sus respuestas. Su condado sí puede.",
@@ -52,5 +52,13 @@
   "theme": {
     "toDark": "Cambiar a modo oscuro",
     "toLight": "Cambiar a modo claro"
+  },
+  "language": {
+    "label": "Idioma",
+    "switchToEn": "Cambiar a inglés",
+    "switchToEs": "Cambiar a español"
+  },
+  "noscript": {
+    "message": "Este cuestionario necesita JavaScript. Llame a su condado:"
   }
 }

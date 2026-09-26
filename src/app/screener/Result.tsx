@@ -6,17 +6,14 @@ import { ruleText } from "@/lib/rules/engine";
 import type { Answer, DisplayOutcome, Lang } from "@/lib/rules/engine";
 import type { Rule, County } from "@/lib/rules/schema";
 import { Button, buttonClasses } from "@/components/ui/Button";
-
-function telHref(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  return `tel:+1${digits}`;
-}
+import { telHref } from "@/lib/tel";
 
 export function Result({
   outcome,
   rule,
   answer,
   county,
+  generalSourceUrl,
   lang,
   headingRef,
   onStartOver,
@@ -25,6 +22,7 @@ export function Result({
   rule: Rule | null;
   answer: Answer | undefined;
   county: County;
+  generalSourceUrl: string;
   lang: Lang;
   headingRef: RefObject<HTMLHeadingElement | null>;
   onStartOver: () => void;
@@ -34,7 +32,9 @@ export function Result({
   const st = useTranslations("screener");
 
   const ruleTexts = rule ? ruleText(rule, lang) : null;
-  const sourceUrl = rule ? rule.sourceUrl : county.sourceUrl;
+  // The rule's own source when a rule decided this result; otherwise the general CDSS letter.
+  // (county.sourceUrl only backs the phone number, so it is never shown as "Source" here.)
+  const sourceUrl = rule ? rule.sourceUrl : generalSourceUrl;
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,31 +45,40 @@ export function Result({
 
       {rule && ruleTexts && (
         <div className="rounded-2xl bg-surface-2 p-4">
-          <p className="text-base text-text-muted">
+          <p className="text-lg text-text-muted">
             {answer === "unsure"
               ? rt("becauseUnsure", { question: ruleTexts.question })
               : rt("becauseYes", { question: ruleTexts.question })}
           </p>
-          <p className="mt-3 font-semibold text-text">{st("whatProofHelps")}</p>
-          <p className="text-base text-text">
-            {ruleTexts.proof}
-            {ruleTexts.proofFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
-          </p>
+          {ruleTexts.proof && (
+            <>
+              <h2 className="mt-3 font-sans text-lg font-semibold text-text">{st("whatProofHelps")}</h2>
+              <p className="text-lg text-text">
+                {ruleTexts.proof}
+                {ruleTexts.proofFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
+              </p>
+            </>
+          )}
         </div>
       )}
 
-      <p className="text-base font-semibold text-text-muted">{rt("notDecision")}</p>
+      <p className="text-lg font-semibold text-text-muted">{rt("notDecision")}</p>
 
       <div className="rounded-2xl bg-surface p-4 flex flex-col gap-3">
         <p className="text-lg font-semibold text-text">{county.name}</p>
         <a href={telHref(county.phone)} className={buttonClasses({ size: "lg", fullWidth: true })}>
-          {t("callCounty", { phone: county.phone })}
+          <span>
+            {t.rich("callCounty", {
+              phone: county.phone,
+              num: (chunks) => <span className="whitespace-nowrap">{chunks}</span>,
+            })}
+          </span>
         </a>
         <a
           href={sourceUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-block py-1 text-base text-text-muted underline"
+          className="inline-flex min-h-12 items-center self-start text-lg text-text-muted underline"
         >
           {t("source")}
         </a>
