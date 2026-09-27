@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import { useStickyBarHeight } from "@/components/ui/useStickyBar";
 import { EntryValidationError, type EntryStore } from "@/lib/hours/store";
 import { ACTIVITY_TYPES, type ActivityType, type Entry, type EntryError } from "@/lib/hours/types";
 import { formatDay, formatHoursInput, newId, parseHours } from "./format";
@@ -75,6 +76,8 @@ export function EntryForm({
   const hoursRef = useRef<HTMLInputElement>(null);
   const confirmYesRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  useStickyBarHeight(barRef);
   // Bumped on every failed save, so focus moves to the first error even when the same
   // error happens twice in a row.
   const [errorRound, setErrorRound] = useState(0);
@@ -171,7 +174,7 @@ export function EntryForm({
     "min-h-12 w-full rounded-2xl border-2 bg-surface px-4 text-lg text-text outline-offset-2 focus-visible:outline-2 focus-visible:outline-signal";
 
   return (
-    <form onSubmit={handleSubmit} noValidate data-sticky-bar="" className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
       <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-semibold outline-none">
         {initial ? t("editTitle") : t("addTitle")}
       </h1>
@@ -408,7 +411,11 @@ export function EntryForm({
         ))}
       {/* Save and Cancel stay in reach at the bottom of the screen, like the checklist's bar.
           It's the last thing in the form, so it never covers the end of the form. */}
-      <div className="sticky bottom-0 z-10 -mx-4 -mb-10 flex flex-col gap-3 border-t-2 border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden">
+      <div
+        ref={barRef}
+        data-sticky-bar=""
+        className="sticky bottom-0 z-10 -mx-4 -mb-10 flex flex-col gap-3 border-t-2 border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden"
+      >
         <button
           type="submit"
           disabled={saving}

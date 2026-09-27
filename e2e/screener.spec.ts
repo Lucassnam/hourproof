@@ -513,6 +513,58 @@ test("checklist rows are at least 56px tall, labels use the full width, and 'Mor
   await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).not.toBeChecked();
 });
 
+// Final-review I1 (WCAG 2.4.11): Tab never parks focus under the sticky action bar. Every tab
+// stop on the checklist, and a programmatic focus() from the top of the page, must end fully
+// above the bar (or be inside the bar itself).
+async function expectFocusClearOfBar(page: Page, what: string) {
+  const result = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    const bar = document.querySelector('[data-testid="checklist-actions"]') as HTMLElement | null;
+    if (!el || !bar) return { ok: false, detail: "no focus or no bar" };
+    if (bar.contains(el)) return { ok: true, detail: "inside the bar" };
+    const box = el.getBoundingClientRect();
+    const barTop = bar.getBoundingClientRect().top;
+    const label = (el.getAttribute("aria-label") || el.textContent || el.id || el.tagName).trim().slice(0, 40);
+    return { ok: box.bottom <= barTop + 0.5, detail: `${label}: bottom ${box.bottom} vs bar top ${barTop}` };
+  });
+  expect(result.ok, `${what}: ${result.detail}`).toBe(true);
+}
+
+for (const lang of ["en", "es"] as const) {
+  test(`I1 (final review, ${lang}): tabbing through the whole checklist at 360x740 never hides focus under the sticky bar`, async ({
+    page,
+  }) => {
+    if (lang === "es") {
+      await chooseSpanishAndStart(page);
+      await answerNoUntil(page, CHECKLIST_ES);
+    } else {
+      await goToScreener(page);
+      await toChecklist(page);
+    }
+    // The heading gets focus when the checklist opens.
+    await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+    await expectFocusClearOfBar(page, "heading focus on open");
+
+    const bar = page.getByTestId("checklist-actions");
+    const lastBarButton = bar.getByRole("button").last();
+    let stops = 0;
+    for (; stops < 120; stops++) {
+      await page.keyboard.press("Tab");
+      await expectFocusClearOfBar(page, `tab stop ${stops + 1}`);
+      if (await lastBarButton.evaluate((el) => el === document.activeElement)) break;
+    }
+    // Every checkbox and every "More about this" was a stop before the bar's last button.
+    const rowCount = await page.locator("fieldset ul > li").count();
+    expect(stops + 1).toBeGreaterThanOrEqual(rowCount * 2 + 2);
+    expect(stops).toBeLessThan(120);
+
+    // Programmatic focus from the top of the page scrolls clear of the bar too.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("fieldset ul > li").last().locator("input").evaluate((el) => (el as HTMLElement).focus());
+    await expectFocusClearOfBar(page, "programmatic focus() on the last checkbox");
+  });
+}
+
 test("I1 (v2): the veteran note shows on the checklist; checklist 'not sure' shows no What to bring", async ({ page }) => {
   await goToScreener(page);
   await toChecklist(page);

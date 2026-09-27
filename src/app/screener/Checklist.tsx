@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { ruleText } from "@/lib/rules/engine";
 import type { Answers, Lang } from "@/lib/rules/engine";
 import type { Rule } from "@/lib/rules/schema";
 import { Button } from "@/components/ui/Button";
+import { useStickyBarHeight } from "@/components/ui/useStickyBar";
 import { safeGet, safeRemove, safeSet } from "@/lib/storage/safe";
 
 export type ChecklistMode = "continue" | "none" | "unsure";
@@ -81,6 +82,9 @@ export function Checklist({
   const checkedIds = () => rules.filter((r) => checked.has(r.id)).map((r) => r.id);
 
   const n = checked.size;
+
+  const barRef = useRef<HTMLDivElement>(null);
+  useStickyBarHeight(barRef);
 
   return (
     <>
@@ -185,8 +189,11 @@ export function Checklist({
 
       {/* Sticky action bar: always in reach while scrolling the list. It sits in normal flow
           after the list, so at the end of the page it never covers the last row. The negative
-          margins pull it over <main>'s side and bottom padding so it spans the screen. */}
+          margins pull it over <main>'s side and bottom padding so it spans the screen.
+          data-sticky-bar keeps Tab and focus() from parking a row under it (globals.css). */}
       <div
+        ref={barRef}
+        data-sticky-bar=""
         data-testid="checklist-actions"
         className="sticky bottom-0 z-10 -mx-4 -mb-10 flex flex-col gap-3 border-t-2 border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden"
       >
