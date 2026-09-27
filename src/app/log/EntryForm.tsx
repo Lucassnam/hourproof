@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { EntryValidationError, type EntryStore } from "@/lib/hours/store";
 import { ACTIVITY_TYPES, type ActivityType, type Entry, type EntryError } from "@/lib/hours/types";
-import { formatHoursInput, newId, parseHours } from "./format";
+import { formatDay, formatHoursInput, newId, parseHours } from "./format";
 
 const QUICK_HOURS = [1, 2, 4, 8] as const;
 const STEP = 0.25;
@@ -13,7 +13,7 @@ const PLACE_MAX = 60;
 const NOTE_MAX = 140;
 
 type Field = "date" | "type" | "hours";
-const FIELD_ORDER: Field[] = ["date", "type", "hours"];
+const FIELD_ORDER: Field[] = ["date", "hours", "type"];
 
 function fieldFor(code: EntryError): Field {
   if (code === "bad_date") return "date";
@@ -46,6 +46,7 @@ export function EntryForm({
   const ids = {
     date: `${uid}-date`,
     dateError: `${uid}-date-error`,
+    dateText: `${uid}-date-text`,
     typeLegend: `${uid}-type-legend`,
     typeError: `${uid}-type-error`,
     hours: `${uid}-hours`,
@@ -82,11 +83,11 @@ export function EntryForm({
     if (errors.length === 0) return;
     const first = FIELD_ORDER.find((f) => errors.some((code) => fieldFor(code) === f));
     const target = first === "date" ? dateRef : first === "type" ? firstTypeRef : hoursRef;
-    target.current?.focus();
+    focusVisible(target.current);
   }, [errorRound, errors]);
 
   useEffect(() => {
-    if (confirmingDelete) confirmYesRef.current?.focus();
+    if (confirmingDelete) focusVisible(confirmYesRef.current);
   }, [confirmingDelete]);
 
   // 25 hours trips both bad_hours and the 24-hour day total; the second message ("counting
@@ -164,12 +165,13 @@ export function EntryForm({
   const dateErrors = errorsFor("date");
   const typeErrors = errorsFor("type");
   const hoursErrors = errorsFor("hours");
+  const dateText = /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatDay(locale, date) : "";
 
   const inputClass =
     "min-h-12 w-full rounded-2xl border-2 bg-surface px-4 text-lg text-text outline-offset-2 focus-visible:outline-2 focus-visible:outline-signal";
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} noValidate data-sticky-bar="" className="flex flex-col gap-6">
       <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-semibold outline-none">
         {initial ? t("editTitle") : t("addTitle")}
       </h1>
@@ -187,74 +189,18 @@ export function EntryForm({
           max={today}
           onChange={(e) => setDate(e.target.value)}
           aria-invalid={dateErrors.length > 0 || undefined}
-          aria-describedby={describedBy(dateErrors.length > 0 && ids.dateError)}
+          aria-describedby={describedBy(dateText !== "" && ids.dateText, dateErrors.length > 0 && ids.dateError)}
           className={inputClass + (dateErrors.length > 0 ? " border-danger" : " border-border")}
         />
+        {/* The native picker shows the phone's language and date order (e.g. 09/26/2026 on an
+            English phone); this line says the chosen day in the page's language. */}
+        {dateText !== "" && (
+          <p id={ids.dateText} className="text-lg text-text-muted">
+            {dateText}
+          </p>
+        )}
         <FieldErrors id={ids.dateError} messages={dateErrors.map((code) => t(`errors.${code}`))} />
       </div>
-
-      {/* Type */}
-      <fieldset
-        className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0"
-        aria-describedby={describedBy(typeErrors.length > 0 && ids.typeError)}
-      >
-        <legend id={ids.typeLegend} className="mb-2 text-lg font-semibold">
-          {t("type")}
-        </legend>
-        {ACTIVITY_TYPES.map((value, i) => {
-          const checked = type === value;
-          const inputId = `${uid}-type-${value}`;
-          return (
-            <label
-              key={value}
-              htmlFor={inputId}
-              className={
-                "flex min-h-14 cursor-pointer items-center gap-4 rounded-2xl border-2 px-4 py-3 " +
-                (checked ? "border-signal bg-surface-2" : "border-border bg-surface")
-              }
-            >
-              <input
-                ref={i === 0 ? firstTypeRef : undefined}
-                id={inputId}
-                type="radio"
-                name={`${uid}-type`}
-                value={value}
-                checked={checked}
-                onChange={() => {
-                  setType(value);
-                  if (value !== "job_search") setInProgram(false);
-                }}
-                className="h-7 w-7 shrink-0 accent-signal"
-              />
-              <span className="flex flex-col">
-                <span className="text-lg font-semibold text-text">{lt(`types.${value}.label`)}</span>
-                <span className="text-lg leading-snug text-text-muted">{lt(`types.${value}.hint`)}</span>
-              </span>
-            </label>
-          );
-        })}
-        <FieldErrors id={ids.typeError} messages={typeErrors.map((code) => t(`errors.${code}`))} />
-      </fieldset>
-
-      {/* Part of a program (job search only) */}
-      {type === "job_search" && (
-        <div className="flex flex-col gap-1 rounded-2xl border-2 border-border bg-surface px-4 py-3">
-          <label htmlFor={ids.inProgram} className="flex min-h-12 cursor-pointer items-center gap-4">
-            <input
-              id={ids.inProgram}
-              type="checkbox"
-              checked={inProgram}
-              onChange={(e) => setInProgram(e.target.checked)}
-              aria-describedby={ids.inProgramHint}
-              className="h-7 w-7 shrink-0 accent-signal"
-            />
-            <span className="text-lg font-semibold">{t("inProgram")}</span>
-          </label>
-          <p id={ids.inProgramHint} className="pl-11 text-lg leading-snug text-text-muted">
-            {t("inProgramHint")}
-          </p>
-        </div>
-      )}
 
       {/* Hours */}
       <div className="flex flex-col gap-2">
@@ -324,6 +270,69 @@ export function EntryForm({
         </div>
       </div>
 
+      {/* Type */}
+      <fieldset
+        className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0"
+        aria-describedby={describedBy(typeErrors.length > 0 && ids.typeError)}
+      >
+        <legend id={ids.typeLegend} className="mb-2 text-lg font-semibold">
+          {t("type")}
+        </legend>
+        {ACTIVITY_TYPES.map((value, i) => {
+          const checked = type === value;
+          const inputId = `${uid}-type-${value}`;
+          return (
+            <label
+              key={value}
+              htmlFor={inputId}
+              className={
+                "flex min-h-14 cursor-pointer items-center gap-4 rounded-2xl border-2 px-4 py-3 " +
+                (checked ? "border-signal bg-surface-2" : "border-border bg-surface")
+              }
+            >
+              <input
+                ref={i === 0 ? firstTypeRef : undefined}
+                id={inputId}
+                type="radio"
+                name={`${uid}-type`}
+                value={value}
+                checked={checked}
+                onChange={() => {
+                  setType(value);
+                  if (value !== "job_search") setInProgram(false);
+                }}
+                className="h-7 w-7 shrink-0 accent-signal"
+              />
+              <span className="flex flex-col">
+                <span className="text-lg font-semibold text-text">{lt(`types.${value}.label`)}</span>
+                <span className="text-lg leading-snug text-text-muted">{lt(`types.${value}.hint`)}</span>
+              </span>
+            </label>
+          );
+        })}
+        <FieldErrors id={ids.typeError} messages={typeErrors.map((code) => t(`errors.${code}`))} />
+      </fieldset>
+
+      {/* Part of a program (job search only) */}
+      {type === "job_search" && (
+        <div className="flex flex-col gap-1 rounded-2xl border-2 border-border bg-surface px-4 py-3">
+          <label htmlFor={ids.inProgram} className="flex min-h-12 cursor-pointer items-center gap-4">
+            <input
+              id={ids.inProgram}
+              type="checkbox"
+              checked={inProgram}
+              onChange={(e) => setInProgram(e.target.checked)}
+              aria-describedby={ids.inProgramHint}
+              className="h-7 w-7 shrink-0 accent-signal"
+            />
+            <span className="text-lg font-semibold">{t("inProgram")}</span>
+          </label>
+          <p id={ids.inProgramHint} className="pl-11 text-lg leading-snug text-text-muted">
+            {t("inProgramHint")}
+          </p>
+        </div>
+      )}
+
       {/* Place and note */}
       <div className="flex flex-col gap-2">
         <label htmlFor={ids.place} className="text-lg font-semibold">
@@ -358,19 +367,6 @@ export function EntryForm({
         </p>
       )}
 
-      <div className="flex flex-col gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex min-h-14 w-full items-center justify-center rounded-2xl border-2 border-signal bg-signal px-6 text-lg font-semibold text-bg"
-        >
-          {t("save")}
-        </button>
-        <Button size="lg" fullWidth onClick={onCancel}>
-          {t("cancel")}
-        </Button>
-      </div>
-
       {initial &&
         (confirmingDelete ? (
           <div
@@ -394,7 +390,7 @@ export function EntryForm({
               onClick={() => {
                 setConfirmingDelete(false);
                 // Put focus back where it was, so keyboard users aren't dropped at the top.
-                requestAnimationFrame(() => deleteRef.current?.focus());
+                requestAnimationFrame(() => focusVisible(deleteRef.current));
               }}
             >
               {t("deleteNo")}
@@ -410,8 +406,34 @@ export function EntryForm({
             {t("delete")}
           </button>
         ))}
+      {/* Save and Cancel stay in reach at the bottom of the screen, like the checklist's bar.
+          It's the last thing in the form, so it never covers the end of the form. */}
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-10 flex flex-col gap-3 border-t-2 border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden">
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex min-h-14 w-full items-center justify-center rounded-2xl border-2 border-signal bg-signal px-6 text-lg font-semibold text-bg"
+        >
+          {t("save")}
+        </button>
+        <Button size="lg" fullWidth onClick={onCancel}>
+          {t("cancel")}
+        </Button>
+      </div>
     </form>
   );
+}
+
+// Focus without the browser's default "scroll just into view", which can leave the field
+// under the sticky Save bar; center it instead.
+function focusVisible(el: HTMLElement | null) {
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  try {
+    el.scrollIntoView({ block: "center" });
+  } catch {
+    // Very old browsers without scrollIntoView options: the focus still happened.
+  }
 }
 
 function FieldErrors({ id, messages }: { id: string; messages: string[] }) {

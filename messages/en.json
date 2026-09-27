@@ -108,11 +108,11 @@
     },
     "notes": {
       "title": "Good to know",
-      "job_search_outside_program": "Job search on your own doesn't count. It only counts as part of a job program.",
-      "job_search_capped": "Some of your job search hours don't count. Job search only counts while it is less than your job program hours.",
-      "workfare_mixed": "Workfare hours are checked differently by your county. Ask them.",
-      "workfare_only": "Workfare hours are not added to the 80 here. Your county checks them differently. Ask them.",
-      "behind_pace": "If you're under 20 hours a week, tell your county within 10 days."
+      "job_search_outside_program": "Job search on your own doesn't count. It only counts as part of a job program, like CalFresh E&T, WIOA or Trade Act.",
+      "job_search_capped": "Some of your job search hours aren't counted here. In a job program, job search counts only while it is less than your other program hours. Ask your program if yours is different.",
+      "workfare_mixed": "Workfare can't be added to your other hours, so the ring doesn't count it. Your county sets your workfare hours from your benefit amount. Ask them how many you need.",
+      "workfare_only": "The ring doesn't count workfare. Your county sets your workfare hours from your benefit amount. Ask them how many you need.",
+      "behind_pace": "If your work or activity drops below 20 hours a week, the rule says to tell your county within 10 days."
     },
     "addHours": "Add hours",
     "listTitle": "Saved hours",
@@ -160,7 +160,7 @@
       "quickLabel": "Quick picks",
       "chip": "{n} {n, plural, one {hour} other {hours}}",
       "inProgram": "Part of a job program?",
-      "inProgramHint": "Like CalFresh E&T or WIOA. Job search only counts when it is part of one.",
+      "inProgramHint": "Like CalFresh E&T, WIOA or Trade Act. Job search only counts when it is part of one.",
       "place": "Where? (optional)",
       "note": "Note (optional)",
       "save": "Save",
@@ -176,7 +176,8 @@
         "too_many_hours_that_day": "That's more than 24 hours on this day, counting your other entries for it.",
         "in_program_only_for_job_search": "Only job search can be marked as part of a job program."
       }
-    }
+    },
+    "workfareTag": "Your county counts this"
   },
   "demo": {
     "banner": "Demo — sample data, not yours.",

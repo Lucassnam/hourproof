@@ -1,7 +1,7 @@
 // The 80-hour ring: a hand-written SVG donut (no chart library). No "use client" of its
 // own: it has no hooks, and it is only rendered from HourLog (a client component).
 //
-// The arc is the `proof` token over a neutral `surface-2` track. The number in the middle
+// The arc is the `proof` token over a thinner neutral track in the `border` token. The number in the middle
 // is plain HTML over the SVG (sharper text than SVG <text>, and it wraps the unit line).
 // The whole thing is one role="img" with a localized label; the parts inside are hidden
 // from screen readers so the number isn't read twice.
@@ -11,6 +11,10 @@
 
 const SIZE = 220;
 const STROKE = 22;
+// The track is thinner than the arc: `border` (>= 3:1 on every background) makes an empty
+// ring read as a ring, and the width difference keeps the arc distinct from the track even
+// where the two colors are close in lightness (and for color-blind readers).
+const TRACK = 8;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -50,7 +54,7 @@ export function Ring({
       style={{ width: SIZE, height: SIZE }}
     >
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true" className="-rotate-90">
-        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={STROKE} className="stroke-surface-2" />
+        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={TRACK} className="stroke-border" />
         {fraction > 0 && (
           <circle
             cx={SIZE / 2}

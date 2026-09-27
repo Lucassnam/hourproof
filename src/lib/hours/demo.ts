@@ -1,12 +1,17 @@
 // Deterministic demo data for "Try the demo" mode. This never touches the real
 // on-device database — see store.ts's separate 'hourproof-demo' database.
 //
-// The demo persona is a composite (like the PRD's "Marco"): variable warehouse
-// work shifts, two community-kitchen volunteer shifts, and one job-search
-// entry outside a qualifying program (so the "outside a program" flag shows).
-// The counted total is deliberately kept around 65% of the prorated 80-hour
-// target through "today", so the demo shows a 'behind' status with a
-// meaningful hours-per-day number rather than a suspiciously tidy 100%.
+// The demo persona is a composite (like the PRD's "Marco"): variable paid work
+// shifts, two volunteering shifts, and one job-search entry outside a
+// qualifying program (so the "outside a program" flag shows).
+//
+// Achievable, not hopeless (Task 7 fix round 1 ruling): the counted total
+// targets clamp(80 − 3.5 × daysLeft, 10, 76), rounded down to a quarter hour.
+// That leaves about 3.5 hours a day to go, so the demo shows 'behind' with a
+// calm, doable hours-per-day number instead of "12.8 hours a day".
+//
+// No `place` on demo entries: place names are user data and shown as typed,
+// so any seeded name would be English-only text on the Spanish screens.
 //
 // Determinism: no Math.random, no Date.now(). Ids and timestamps are derived
 // entirely from `today` and a running index, so the same `today` always
@@ -15,26 +20,43 @@
 import { addMonths, daysInMonth, monthOf } from '@/lib/dates'
 import type { ActivityType, Entry } from './types'
 
-const DEMO_FRACTION_OF_TARGET = 0.65
+const PER_DAY_LEFT = 3.5
+const MIN_GOAL = 10
+const MAX_GOAL = 76
 
-// A repeating cycle of shift lengths (hours) used for the warehouse work
-// shifts, so shifts feel "variable" rather than uniform.
+// A repeating cycle of shift lengths (hours), so shifts feel "variable".
 const SHIFT_HOURS = [6, 4, 8, 5, 7, 3]
+// Which shifts (by index) are volunteering instead of paid work.
+const VOLUNTEER_SHIFT_INDICES = [2, 5]
 
-function quarterRound(hours: number): number {
-  return Math.round(hours * 4) / 4
+function floorQuarter(hours: number): number {
+  return Math.floor(hours * 4) / 4
 }
 
-// Builds one month's worth of demo entries, spread across days 1..throughDay
-// (inclusive), targeting roughly 65% of that month's prorated 80-hour target.
-function buildMonthEntries(month: string, throughDay: number): Entry[] {
+// The counted total the seed aims for, given the days left after `throughDay`.
+export function demoGoal(month: string, throughDay: number): number {
   const totalDays = daysInMonth(month)
-  const proratedTarget = (throughDay / totalDays) * 80
-  const goal = quarterRound(proratedTarget * DEMO_FRACTION_OF_TARGET)
+  const daysLeft = totalDays - throughDay
+  let goal = floorQuarter(Math.min(MAX_GOAL, Math.max(MIN_GOAL, 80 - PER_DAY_LEFT * daysLeft)))
+  // In the first days of a month the 10-hour floor would project past 80 (on
+  // track, not behind). Keep the current month 'behind': stay a quarter hour
+  // under the pace that projects exactly 80. (The UI opens the demo on the
+  // fully seeded previous month on those days anyway.)
+  if (daysLeft > 0) {
+    const onPace = (80 * throughDay) / totalDays
+    if (goal >= onPace) goal = Math.max(0.25, floorQuarter(onPace - 0.25))
+  }
+  return goal
+}
+
+// Builds one month's worth of demo entries on days 1..throughDay (inclusive).
+function buildMonthEntries(month: string, throughDay: number): Entry[] {
+  const goal = demoGoal(month, throughDay)
 
   const entries: Entry[] = []
   let counted = 0
   let index = 0
+  let shiftIdx = 0
   let volunteerPlaced = 0
 
   const addEntry = (day: number, type: ActivityType, hours: number, extra: Partial<Entry> = {}) => {
@@ -44,44 +66,35 @@ function buildMonthEntries(month: string, throughDay: number): Entry[] {
       id: `demo-${date}-${index}`,
       date,
       type,
-      hours: quarterRound(hours),
+      hours,
       createdAt: `${date}T18:00:00.000Z`,
       ...extra,
     })
   }
 
-  // Warehouse shifts every other day, with the 3rd and 6th shifts swapped
-  // for community-kitchen volunteering, until the goal is reached or we run
-  // out of days. (Shift index, not calendar day, decides which slots are
-  // volunteering, since the day sequence below only ever lands on odd days.)
-  const VOLUNTEER_SHIFT_INDICES = [2, 5]
-  let day = 1
-  let shiftIdx = 0
+  // Shifts every other day (1, 3, 5, …); if that isn't enough to reach the
+  // goal (a short month near its end), the even days fill the rest.
+  const days: number[] = []
+  for (let d = 1; d <= throughDay; d += 2) days.push(d)
+  for (let d = 2; d <= throughDay; d += 2) days.push(d)
 
-  while (day <= throughDay && counted < goal) {
-    const remaining = quarterRound(goal - counted)
+  for (const day of days) {
+    const remaining = goal - counted
     if (remaining < 0.25) break
-
-    const rawHours = SHIFT_HOURS[shiftIdx % SHIFT_HOURS.length]
-    const hours = Math.min(rawHours, remaining)
-
+    const hours = Math.min(SHIFT_HOURS[shiftIdx % SHIFT_HOURS.length], remaining)
     if (volunteerPlaced < VOLUNTEER_SHIFT_INDICES.length && shiftIdx === VOLUNTEER_SHIFT_INDICES[volunteerPlaced]) {
-      addEntry(day, 'volunteer', hours, { place: 'Community kitchen' })
+      addEntry(day, 'volunteer', hours)
       volunteerPlaced += 1
     } else {
-      addEntry(day, 'work', hours, { place: 'Warehouse' })
+      addEntry(day, 'work', hours)
     }
-
     counted += hours
     shiftIdx += 1
-    day += 2
   }
 
-  // One job-search entry outside a qualifying program, placed on the last
-  // day covered so far: it doesn't count toward the 80 hours, but it should
-  // trip the "outside a program" flag. It's safe to double it up with that
-  // day's work/volunteer shift (at most 8h) since 8h + 2h is nowhere near
-  // the 24h/day cap.
+  // One job-search entry outside a qualifying program on the last day
+  // covered: it doesn't count toward the 80 hours, but it trips the "outside
+  // a program" note. A shift is at most 8h, so 8h + 2h stays far under 24h.
   if (throughDay >= 1) {
     addEntry(throughDay, 'job_search', 2, { inProgram: false })
   }

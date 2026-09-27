@@ -13,7 +13,8 @@ import {
 } from '../store'
 import { summarizeMonth, validateEntry } from '../summarize'
 import type { Entry } from '../types'
-import { monthOf } from '@/lib/dates'
+import { daysInMonth, monthOf } from '@/lib/dates'
+import { demoGoal } from '../demo'
 
 // vitest's default environment is Node, which has no sessionStorage. safe.ts
 // reads globalThis.sessionStorage, so give it a minimal in-memory stand-in
@@ -232,17 +233,46 @@ describe('demoEntries', () => {
 
     // Includes at least one job-search entry outside a program, so the flag shows.
     expect(entries.some((e) => e.type === 'job_search' && !e.inProgram)).toBe(true)
-    // Includes community-kitchen volunteering and warehouse work.
-    expect(entries.some((e) => e.type === 'volunteer' && e.place === 'Community kitchen')).toBe(true)
-    expect(entries.some((e) => e.type === 'work' && e.place === 'Warehouse')).toBe(true)
+    // Paid work and volunteering, and no seeded place names (they'd be English-only text on
+    // the Spanish screens).
+    expect(entries.some((e) => e.type === 'volunteer')).toBe(true)
+    expect(entries.some((e) => e.type === 'work')).toBe(true)
+    expect(entries.every((e) => e.place === undefined)).toBe(true)
 
+    // Achievable: counted = floor-quarter(clamp(80 - 3.5 * 11 days left, 10, 76)) = 41.5,
+    // so about 3.5 hours a day to go (not a hopeless 12-hours-a-day demo).
     const summary = summarizeMonth(entries, '2026-10', today)
     expect(summary.status).toBe('behind')
+    expect(summary.counted).toBe(41.5)
+    expect(summary.neededPerDay).not.toBeNull()
+    expect(summary.neededPerDay!).toBeLessThanOrEqual(4.5)
+  })
 
-    // Roughly 65% of the prorated target through day 20 (80 * 20/31 ≈ 51.6).
-    const proratedTarget = (80 * 20) / 31
-    expect(summary.counted).toBeGreaterThan(proratedTarget * 0.5)
-    expect(summary.counted).toBeLessThan(proratedTarget * 0.8)
+  test('2026-09-26: behind, with about 3.5 hours a day to go', () => {
+    const today = '2026-09-26'
+    const summary = summarizeMonth(demoEntries(today), '2026-09', today)
+    expect(summary.status).toBe('behind')
+    expect(summary.counted).toBe(66)
+    expect(summary.neededPerDay).toBeCloseTo(3.5)
+  })
+
+  test('every day of several months: valid entries, counted hits the goal, behind, and at most 4.5 hours a day', () => {
+    for (const month of ['2026-02', '2026-09', '2026-10', '2028-02']) {
+      for (let day = 1; day <= daysInMonth(month); day++) {
+        const today = `${month}-${String(day).padStart(2, '0')}`
+        const entries = demoEntries(today)
+        for (const e of entries) {
+          const others = entries.filter((o) => o.id !== e.id && o.date === e.date)
+          expect(validateEntry(e, others), `${today} ${e.id}`).toEqual([])
+          expect(e.date <= today).toBe(true)
+        }
+        const summary = summarizeMonth(entries, month, today)
+        expect(summary.counted, today).toBe(demoGoal(month, day))
+        expect(summary.status, today).toBe('behind')
+        if (summary.neededPerDay !== null) expect(summary.neededPerDay, today).toBeLessThanOrEqual(4.5)
+        expect(summary.flags, today).toContain('job_search_outside_program')
+      }
+    }
   })
 
   test('2026-10-02: includes previous-month (September) entries', () => {

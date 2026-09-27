@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { addMonths, californiaDate, monthOf } from "../src/lib/dates";
+import { formatDay } from "../src/app/log/format";
 
 // Hour log (Phase 2, Task 7). Every Playwright context starts with an empty IndexedDB, so
 // each test begins on an empty month. "Today" is the California date, like the app's.
@@ -60,6 +61,13 @@ test("1. empty state, then 4 hours of volunteering today shows 4 of 80 and the e
   const date = page.getByLabel("Date");
   await expect(date).toHaveValue(californiaDate());
   await expect(date).toHaveAttribute("max", californiaDate());
+  // The chosen day, spelled out in the page's language, is linked to the date field.
+  const dayLine = page.getByText(formatDay("en", californiaDate()), { exact: true });
+  await expect(dayLine).toBeVisible();
+  await expect(date).toHaveAttribute("aria-describedby", new RegExp(`(^| )${await dayLine.getAttribute("id")}( |$)`));
+  // Save and Cancel sit in a sticky bar: reachable on a 360x740 screen without scrolling.
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeInViewport();
   await page.getByRole("radio", { name: /^Volunteering/ }).check();
   await page.getByRole("button", { name: "4 hours", exact: true }).click();
   await expect(page.getByLabel("How many hours?")).toHaveValue("4");
@@ -91,6 +99,10 @@ test("2. edit to 6 hours, then delete with the confirm step", async ({ page }) =
   await expect(page.getByText("Delete this entry? You can't undo this.")).toBeVisible();
   // The confirm is keyboard-reachable: focus lands on "Yes, delete" and Enter confirms.
   await expect(page.getByRole("button", { name: "Yes, delete" })).toBeFocused();
+  // …and it isn't hidden under the sticky Save bar.
+  const yes = await page.getByRole("button", { name: "Yes, delete" }).boundingBox();
+  const bar = await page.getByRole("button", { name: "Save", exact: true }).locator("xpath=..").boundingBox();
+  expect(yes && bar && yes.y + yes.height <= bar.y).toBe(true);
   await page.keyboard.press("Enter");
 
   await expect(page.getByRole("heading", { level: 1, name: "Your hours" })).toBeVisible();
@@ -104,7 +116,9 @@ test("3. job search outside a program shows the note and doesn't change the coun
 
   await expect(ring(page)).toHaveAttribute("aria-label", "0 of 80 hours this month");
   await expect(
-    page.getByText("Job search on your own doesn't count. It only counts as part of a job program."),
+    page.getByText(
+      "Job search on your own doesn't count. It only counts as part of a job program, like CalFresh E&T, WIOA or Trade Act.",
+    ),
   ).toBeVisible();
   const row = rows(page).filter({ hasText: "Job search" });
   await expect(row).toContainText("3 hours");
@@ -155,6 +169,7 @@ test("6. Spanish: ring label and pace line are in Spanish, with no English on th
   await expect(page.getByTestId("pace")).toHaveText("Todavía no tiene horas este mes.");
 
   await addButton(page, "Agregar horas").click();
+  await expect(page.getByText(formatDay("es", californiaDate()), { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /^Trabajo pagado/ }).check();
   await page.getByLabel("¿Cuántas horas?").fill("4,5");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();

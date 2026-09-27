@@ -8,10 +8,11 @@ import { DemoBanner } from "@/components/ui/DemoBanner";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore, type EntryStore } from "@/lib/hours/store";
 import { summarizeMonth } from "@/lib/hours/summarize";
-import type { Entry, Flag, MonthSummary } from "@/lib/hours/types";
+import type { Entry, MonthSummary } from "@/lib/hours/types";
 import { EntryForm } from "./EntryForm";
 import { Ring } from "./Ring";
 import { formatDay, formatMonth, formatNumber } from "./format";
+import { notesFor } from "./notes";
 
 // The hour log: one route, two views. The list (ring, pace line, notes, entries) is the
 // default; the add/edit form is `?add=1` / `?edit=<id>`. Views switch with the native
@@ -23,12 +24,6 @@ import { formatDay, formatMonth, formatNumber } from "./format";
 // sends them anywhere.
 
 type Loaded = { store: EntryStore; entries: Entry[] };
-
-// The notes shown under the pace line, in this order. `workfare_only` is not an engine
-// flag: the engine leaves workfare out of the count, so a workfare-only month would
-// otherwise show 0 with no explanation.
-type Note = Flag | "workfare_only";
-const NOTE_ORDER: Note[] = ["job_search_outside_program", "job_search_capped", "workfare_mixed", "workfare_only", "behind_pace"];
 
 export function HourLog() {
   const t = useTranslations("log");
@@ -54,13 +49,14 @@ export function HourLog() {
         const store = await openStore(mode);
         const entries = await store.list();
         if (cancelled) return;
-        // The demo seeds the previous month when today is day 1-3; open there so the
-        // demo has something to show.
+        // The demo seeds the previous month too when today is day 1-3 (the current month
+        // has barely started); open on it so the demo has a month to show. The current month
+        // is never empty in the demo (it always has the job-search entry), so this keys on
+        // the day, not on an empty current month.
         if (mode === "demo") {
           const prev = addMonths(monthOf(today), -1);
-          const hasCurrent = entries.some((e) => monthOf(e.date) === monthOf(today));
           const hasPrev = entries.some((e) => monthOf(e.date) === prev);
-          if (!hasCurrent && hasPrev) setMonth(prev);
+          if (Number(today.slice(8, 10)) <= 3 && hasPrev) setMonth(prev);
         }
         setLoaded({ store, entries });
       } catch {
@@ -269,6 +265,9 @@ export function HourLog() {
                               <p className="text-lg tabular-nums">{hoursText(entry.hours)}</p>
                               {entry.place && <p className="truncate text-lg text-text-muted">{entry.place}</p>}
                               {notCounted && <p className="text-lg font-semibold text-pace">{t("notCounted")}</p>}
+                              {entry.type === "workfare" && (
+                                <p className="text-lg font-semibold text-pace">{t("workfareTag")}</p>
+                              )}
                             </div>
                             <button
                               type="button"
@@ -306,15 +305,6 @@ export function HourLog() {
       </footer>
     </Screen>
   );
-}
-
-function notesFor(summary: MonthSummary, isPast: boolean, entryCount: number): Note[] {
-  const set = new Set<Note>(summary.flags);
-  if (summary.byType.workfare > 0 && !set.has("workfare_mixed")) set.add("workfare_only");
-  // A past month with nothing in it is most likely a month before the person started
-  // using the app, not a month they fell behind in: don't tell them to call the county.
-  if (isPast && entryCount === 0) set.delete("behind_pace");
-  return NOTE_ORDER.filter((note) => set.has(note));
 }
 
 function paceLine(
