@@ -44,6 +44,19 @@ describe('summarizeMonth', () => {
     expect(s.byType.workfare).toBe(20)
     expect(s.flags).toContain('workfare_mixed')
   })
+  test('workfare plus uncounted job search in a program with no program hours still flags mixed', () => {
+    const s = summarizeMonth([e('2026-10-02', 'workfare', 10), e('2026-10-03', 'job_search', 5, { inProgram: true })], '2026-10', '2026-10-10')
+    expect(s.counted).toBe(0)
+    expect(s.flags).toContain('workfare_mixed')
+  })
+  test('workfare alone is not flagged as mixed', () => {
+    const s = summarizeMonth([e('2026-10-02', 'workfare', 10)], '2026-10', '2026-10-10')
+    expect(s.flags).not.toContain('workfare_mixed')
+  })
+  test('workfare plus job search outside a program flags mixed', () => {
+    const s = summarizeMonth([e('2026-10-02', 'workfare', 10), e('2026-10-03', 'job_search', 5)], '2026-10', '2026-10-10')
+    expect(s.flags).toContain('workfare_mixed')
+  })
   test('pace: on track vs behind, with hours needed per day', () => {
     const on = summarizeMonth([e('2026-10-01', 'work', 30)], '2026-10', '2026-10-10')
     expect(on.status).toBe('on_track') // 30/10*31 = 93

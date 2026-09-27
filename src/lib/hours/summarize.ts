@@ -30,6 +30,9 @@ function toHours(quarters: number): number {
   return quarters / 4
 }
 
+// Checks only calendar validity (e.g. rejects 2026-02-30) using local-time
+// Date construction; it never needs California time since it doesn't
+// resolve "today", only whether the given y/m/d combination exists.
 function isValidDate(date: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
   if (!match) return false
@@ -106,7 +109,7 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
   const countedQuarters = byTypeQuarters.work + byTypeQuarters.volunteer + byTypeQuarters.program + jobSearchCountedQuarters
 
   const flags: Flag[] = []
-  if (byTypeQuarters.workfare > 0 && (countedQuarters > 0 || jobSearchOutsideProgramQuarters > 0)) {
+  if (byTypeQuarters.workfare > 0 && ACTIVITY_TYPES.some((t) => t !== 'workfare' && byTypeQuarters[t] > 0)) {
     flags.push('workfare_mixed')
   }
   if (jobSearchOutsideProgramQuarters > 0) {
@@ -117,7 +120,7 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
   }
 
   const counted = toHours(countedQuarters)
-  const remaining = Math.max(0, toHours(Math.max(0, TARGET_QUARTERS - countedQuarters)))
+  const remaining = toHours(Math.max(0, TARGET_QUARTERS - countedQuarters))
   const jobSearchCountedHours = toHours(jobSearchCountedQuarters)
 
   const totalDaysInMonth = daysInMonth(month)
