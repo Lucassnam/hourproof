@@ -58,6 +58,35 @@ describe('shipped rule file: checklist labels', () => {
   }
 })
 
+describe('shipped rule file: veteran checklist note', () => {
+  const veteran = ruleSet.rules.find((r) => r.id === 'veteran_info')
+  const disability = ruleSet.rules.find((r) => r.id === 'disability_benefits')
+
+  test('the veteran note appears on the checklist screen with a checklist-specific note', () => {
+    const checklist = screens(ruleSet, new Date('2026-10-01T19:00:00Z')).find((s) => s.type === 'checklist')
+    expect(checklist && checklist.type === 'checklist' ? checklist.notes.map((r) => r.id) : []).toContain('veteran_info')
+    expect(veteran?.checklistNote_en).toBeTruthy()
+    expect(veteran?.checklistNote_es).toBeTruthy()
+  })
+
+  // The note tells people which box to check, by its exact label. If that label is ever
+  // reworded, this fails so the note gets updated with it.
+  test('the English note quotes the disability rule\'s current label_en', () => {
+    expect(veteran?.checklistNote_en).toContain(`"${disability?.label_en}"`)
+  })
+  test('the Spanish note quotes the disability rule\'s current label_es', () => {
+    expect(veteran?.checklistNote_es).toContain(`"${disability?.label_es}"`)
+  })
+  test('the checklist note never says "go back" (the box is on the same screen)', () => {
+    expect(veteran?.checklistNote_en).not.toMatch(/go back/i)
+    expect(veteran?.checklistNote_es).not.toMatch(/regrese/i)
+  })
+  test('ruleText picks the checklist note per language', () => {
+    expect(ruleText(veteran!, 'en')).toMatchObject({ checklistNote: veteran!.checklistNote_en, checklistNoteFallback: false })
+    expect(ruleText(veteran!, 'es')).toMatchObject({ checklistNote: veteran!.checklistNote_es, checklistNoteFallback: false })
+  })
+})
+
 describe('shipped rule file: safety gate (unreviewed file must never claim likely_exempt)', () => {
   // Fixed instant so the waiver-county scope rule (validUntil 2026-10-31) is active and the
   // screen/rule counts below are deterministic.

@@ -117,6 +117,23 @@ describe('ruleText', () => {
     }))
 })
 
+describe('ruleText checklistNote', () => {
+  const noteRule = {
+    id: 'vet', question_en: 'Vet?', question_es: '¿Vet?', kind: 'info' as const, outcomeIfYes: 'continue' as const,
+    hint_en: 'hint', hint_es: 'pista', sourceUrl: 'https://example.gov/a', sourceQuote: 'q', confidence: 'confirmed' as const,
+  }
+  test('null when the rule has none', () =>
+    expect(ruleText(noteRule, 'es')).toMatchObject({ checklistNote: null, checklistNoteFallback: false }))
+  test('Spanish note when present', () =>
+    expect(ruleText({ ...noteRule, checklistNote_en: 'note', checklistNote_es: 'nota' }, 'es')).toMatchObject({
+      checklistNote: 'nota', checklistNoteFallback: false }))
+  test('falls back to English and flags it', () =>
+    expect(ruleText({ ...noteRule, checklistNote_en: 'note' }, 'es')).toMatchObject({ checklistNote: 'note', checklistNoteFallback: true }))
+  test('English', () =>
+    expect(ruleText({ ...noteRule, checklistNote_en: 'note', checklistNote_es: 'nota' }, 'en')).toMatchObject({
+      checklistNote: 'note', checklistNoteFallback: false }))
+})
+
 describe('ruleText hints and absent proof', () => {
   const base2 = {
     id: 'vet', question_en: 'Vet?', question_es: '¿Vet?', kind: 'info', outcomeIfYes: 'continue',

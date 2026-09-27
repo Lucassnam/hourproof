@@ -22,6 +22,7 @@ const messageTexts = [
 
 const RULE_TEXT_FIELDS = [
   'question_en', 'question_es', 'hint_en', 'hint_es', 'proofThatHelps_en', 'proofThatHelps_es', 'label_en', 'label_es',
+  'checklistNote_en', 'checklistNote_es',
 ] as const
 const ruleTexts = ruleSet.rules.flatMap((r) =>
   RULE_TEXT_FIELDS.flatMap((f) => (r[f] ? [[`${r.id}.${f}`, r[f] as string] as const] : [])),

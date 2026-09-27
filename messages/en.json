@@ -23,8 +23,7 @@
       "title": "Do any of these apply to you?",
       "sub": "Check all that apply.",
       "more": "More about this",
-      "moreShort": "More",
-      "continue": "Continue",
+      "continue": "Continue ({n} checked)",
       "none": "None of these apply",
       "unsure": "I'm not sure"
     }

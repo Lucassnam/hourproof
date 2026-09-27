@@ -80,11 +80,13 @@ export function Checklist({
   // Keep the rule order, not the click order, so the result lists match the screen.
   const checkedIds = () => rules.filter((r) => checked.has(r.id)).map((r) => r.id);
 
+  const n = checked.size;
+
   return (
     <>
       <p className="text-lg text-text-muted">{st("questionOf", { n: index + 1, total })}</p>
       <div className="flex flex-col gap-2">
-        <h1 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold outline-none">
+        <h1 id="checklist-title" ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold outline-none">
           {ct("title")}
         </h1>
         <p id="checklist-sub" className="text-lg text-text-muted">
@@ -92,85 +94,87 @@ export function Checklist({
         </p>
       </div>
 
-      <ul className="flex flex-col gap-2" aria-describedby="checklist-sub">
-        {rules.map((rule) => {
-          const text = ruleText(rule, lang);
-          const inputId = `ex-${rule.id}`;
-          const isChecked = checked.has(rule.id);
-          return (
-            <li
-              key={rule.id}
-              className={
-                "relative rounded-2xl border-2 " +
-                (isChecked ? "border-signal bg-surface-2" : "border-border bg-surface")
-              }
-            >
-              <label htmlFor={inputId} className="flex min-h-14 cursor-pointer items-center gap-4 py-2 pl-4 pr-20">
-                <input
-                  id={inputId}
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) => toggle(rule.id, e.target.checked)}
-                  className="h-7 w-7 shrink-0 accent-signal"
-                />
-                <span className="text-lg text-text">
-                  {text.label}
-                  {text.labelFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
-                </span>
-              </label>
-              <details className="group px-4 [&[open]]:pb-4">
-                <summary
-                  aria-label={`${ct("more")}: ${text.label ?? ""}`}
-                  className="absolute right-1 top-1 flex min-h-12 min-w-14 cursor-pointer list-none items-center justify-center gap-1 rounded-xl px-1 text-lg text-text-muted underline decoration-2 underline-offset-4 [&::-webkit-details-marker]:hidden"
-                >
-                  {ct("moreShort")}
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="transition-transform group-open:rotate-180"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </summary>
-                <div className="flex flex-col gap-2 border-t-2 border-border pt-3">
-                  <p className="text-lg text-text">
-                    {text.question}
-                    {text.questionFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
-                  </p>
-                  {text.hint && (
-                    <p className="text-lg text-text-muted">
-                      {text.hint}
-                      {text.hintFallback && <span className="ml-2">{st("englishOnly")}</span>}
+      {/* A fieldset groups the checkboxes under the heading (as its name) and the sub-line. */}
+      <fieldset aria-labelledby="checklist-title" aria-describedby="checklist-sub" className="m-0 min-w-0 border-0 p-0">
+        <ul className="flex flex-col gap-2 pb-2">
+          {rules.map((rule) => {
+            const text = ruleText(rule, lang);
+            const inputId = `ex-${rule.id}`;
+            const isChecked = checked.has(rule.id);
+            return (
+              <li
+                key={rule.id}
+                className={"rounded-2xl border-2 " + (isChecked ? "border-signal bg-surface-2" : "border-border bg-surface")}
+              >
+                {/* The checkbox and its label use the full row width; the disclosure sits below. */}
+                <label htmlFor={inputId} className="flex min-h-14 cursor-pointer items-center gap-4 px-4 pt-2">
+                  <input
+                    id={inputId}
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) => toggle(rule.id, e.target.checked)}
+                    className="h-7 w-7 shrink-0 accent-signal"
+                  />
+                  <span className="text-lg text-text">
+                    {text.label}
+                    {text.labelFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
+                  </span>
+                </label>
+                <details className="group pl-15 pr-4 [&[open]]:pb-3">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 self-start text-lg text-text-muted [&::-webkit-details-marker]:hidden">
+                    <span className="underline decoration-1 underline-offset-4">{ct("more")}</span>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="transition-transform group-open:rotate-180"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </summary>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <p className="text-lg text-text">
+                      {text.question}
+                      {text.questionFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
                     </p>
-                  )}
-                </div>
-              </details>
-            </li>
-          );
-        })}
-      </ul>
+                    {text.hint && (
+                      <p className="text-lg text-text-muted">
+                        {text.hint}
+                        {text.hintFallback && <span className="ml-2">{st("englishOnly")}</span>}
+                      </p>
+                    )}
+                  </div>
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+      </fieldset>
 
       {notes.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">
           {notes.map((note) => {
             const text = ruleText(note, lang);
+            // The checklist's own wording when the rule has one (e.g. "check … above" instead of
+            // the question-screen hint's "go back and answer yes…"); otherwise the hint.
+            const body = text.checklistNote ?? text.hint;
+            const bodyFallback = text.checklistNote ? text.checklistNoteFallback : text.hintFallback;
             return (
               <div key={note.id} className="flex flex-col gap-1">
                 <p className="text-lg font-semibold text-text">
                   {text.question}
                   {text.questionFallback && <span className="ml-2 font-normal text-text-muted">{st("englishOnly")}</span>}
                 </p>
-                {text.hint && (
+                {body && (
                   <p className="text-lg text-text-muted">
-                    {text.hint}
-                    {text.hintFallback && <span className="ml-2">{st("englishOnly")}</span>}
+                    {body}
+                    {bodyFallback && <span className="ml-2">{st("englishOnly")}</span>}
                   </p>
                 )}
               </div>
@@ -179,22 +183,27 @@ export function Checklist({
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <Button
-          variant="strong"
-          size="lg"
-          fullWidth
-          disabled={checked.size === 0}
-          onClick={() => submit(checkedIds(), "continue")}
-        >
-          {ct("continue")}
-        </Button>
-        <Button size="lg" fullWidth onClick={() => submit([], "none")}>
-          {ct("none")}
-        </Button>
-        <Button size="lg" fullWidth onClick={() => submit(checkedIds(), "unsure")}>
-          {ct("unsure")}
-        </Button>
+      {/* Sticky action bar: always in reach while scrolling the list. It sits in normal flow
+          after the list, so at the end of the page it never covers the last row. The negative
+          margins pull it over <main>'s side and bottom padding so it spans the screen. */}
+      <div
+        data-testid="checklist-actions"
+        className="sticky bottom-0 z-10 -mx-4 -mb-10 flex flex-col gap-3 border-t-2 border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden"
+      >
+        {n > 0 ? (
+          <Button variant="strong" size="lg" fullWidth onClick={() => submit(checkedIds(), "continue")}>
+            {ct("continue", { n })}
+          </Button>
+        ) : (
+          <>
+            <Button size="lg" fullWidth onClick={() => submit([], "none")}>
+              {ct("none")}
+            </Button>
+            <Button size="lg" fullWidth onClick={() => submit([], "unsure")}>
+              {ct("unsure")}
+            </Button>
+          </>
+        )}
       </div>
     </>
   );

@@ -45,6 +45,25 @@ describe('parseRuleSet', () => {
     expect(() =>
       parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'likely_exempt', label_en: undefined })])),
     ).toThrow(/info must not have outcomeIfYes likely_exempt/))
+  test('accepts a checklistNote on an info/continue rule', () =>
+    expect(
+      parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'continue', label_en: undefined, checklistNote_en: 'n', checklistNote_es: 'nota' })]))
+        .rules[0].checklistNote_es,
+    ).toBe('nota'))
+  test('rejects a checklistNote on an exemption rule', () =>
+    expect(() => parseRuleSet(set([rule({ checklistNote_en: 'n' })]))).toThrow(/checklistNote is only for info/))
+  test('rejects a checklistNote on an info rule that ends the screener', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'ask_county', label_en: undefined, checklistNote_en: 'n' })])),
+    ).toThrow(/checklistNote is only for info/))
+  test('rejects a Spanish checklistNote without an English one', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'continue', label_en: undefined, checklistNote_es: 'nota' })])),
+    ).toThrow(/checklistNote_es without/))
+  test('rejects an empty checklistNote', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'continue', label_en: undefined, checklistNote_en: '' })])),
+    ).toThrow())
   test('rejects reviewedAt set while reviewer is null', () =>
     expect(() => parseRuleSet(set([rule()], { reviewedAt: '2026-10-10', reviewer: null }))).toThrow(/reviewer/))
   test('rejects reviewer set while reviewedAt is null', () =>

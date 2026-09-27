@@ -244,6 +244,8 @@
       "question_es": "¿Es usted veterano/a?",
       "hint_en": "Being a veteran is no longer an exemption by itself. If you get any VA disability benefit, go back and answer yes to the disability benefits question.",
       "hint_es": "Ser veterano/a ya no es una exención por sí solo. Si recibe cualquier beneficio por discapacidad de Asuntos de Veteranos (VA), regrese y responda que sí a la pregunta sobre beneficios por discapacidad.",
+      "checklistNote_en": "Being a veteran is no longer an exemption by itself. If you get any VA disability benefit, check \"I applied for or get a disability benefit\" above.",
+      "checklistNote_es": "Ser veterano/a ya no es una exención por sí solo. Si recibe algún beneficio de discapacidad del VA, marque \"Solicité o recibo un beneficio por discapacidad\" arriba.",
       "kind": "info",
       "outcomeIfYes": "continue",
       "sourceUrl": "https://cdss.ca.gov/Portals/9/Additional-Resources/Letters-and-Notices/ACLs/2025/25-93.pdf",

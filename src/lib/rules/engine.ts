@@ -145,22 +145,28 @@ export function displayOutcome(set: RuleSet, step: Extract<Step, { type: 'result
 
 // Picks the rule's text in `lang`, falling back to English (and flagging it) when a Spanish
 // text is missing. `hint` and `proof` are null when the rule has none in any language. `label`
-// is the short checklist checkbox text (null for non-exemption rules, which have none).
+// is the short checklist checkbox text (null for non-exemption rules, which have none), and
+// `checklistNote` is a note rule's checklist-screen wording (null when it has none).
 export function ruleText(rule: Rule, lang: Lang) {
   const es = lang === 'es'
   const q = es ? rule.question_es : rule.question_en
   const h = es ? rule.hint_es : rule.hint_en
   const p = es ? rule.proofThatHelps_es : rule.proofThatHelps_en
   const l = es ? rule.label_es : rule.label_en
+  const n = es ? rule.checklistNote_es : rule.checklistNote_en
   return {
     question: q ?? rule.question_en,
     hint: h ?? rule.hint_en ?? null,
     proof: p ?? rule.proofThatHelps_en ?? null,
     label: l ?? rule.label_en ?? null,
+    // The checklist-screen wording of a note rule (null when the rule has none; the checklist
+    // then falls back to `hint`).
+    checklistNote: n ?? rule.checklistNote_en ?? null,
     questionFallback: es && !rule.question_es,
     hintFallback: es && !!rule.hint_en && !rule.hint_es,
     proofFallback: es && !!rule.proofThatHelps_en && !rule.proofThatHelps_es,
     labelFallback: es && !!rule.label_en && !rule.label_es,
+    checklistNoteFallback: es && !!rule.checklistNote_en && !rule.checklistNote_es,
   }
 }
 

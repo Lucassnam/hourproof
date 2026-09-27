@@ -68,6 +68,15 @@ async function check(page: Page, label: string) {
   await page.getByRole("checkbox", { name: label, exact: true }).check();
 }
 
+// The sticky bar's Continue button, labeled "Continue (n checked)" / "Continuar (n marcada/s)".
+function continueButton(page: Page) {
+  return page.getByRole("button", { name: /^(Continue \(\d+ checked\)|Continuar \(\d+ marcadas?\))$/ });
+}
+
+async function pressContinue(page: Page) {
+  await continueButton(page).click();
+}
+
 function whatToBring(page: Page, name = "What to bring") {
   return page.getByRole("heading", { level: 2, name });
 }
@@ -105,11 +114,12 @@ test("2: pregnant path gives 'You may be exempt', what to bring, and a script na
   await goToScreener(page);
   await toChecklist(page);
 
-  const cont = page.getByRole("button", { name: "Continue", exact: true });
-  await expect(cont).toBeDisabled(); // nothing checked yet
+  // Nothing checked yet: the sticky bar offers "None of these apply" and "I'm not sure" only.
+  await expect(continueButton(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "None of these apply" })).toBeVisible();
   await check(page, "I'm pregnant");
-  await expect(cont).toBeEnabled();
-  await cont.click();
+  await expect(page.getByRole("button", { name: "Continue (1 checked)", exact: true })).toBeVisible();
+  await pressContinue(page);
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("You may be exempt. Ask your county to confirm.");
   expect((await wholePageText(page)).toLowerCase()).not.toContain("likely exempt");
@@ -126,7 +136,7 @@ test("3: two exemptions checked show both labels under Why and both proofs under
 
   await check(page, "I'm pregnant");
   await check(page, "I applied for or get unemployment benefits");
-  await answer(page, "Continue");
+  await pressContinue(page);
 
   const why = page.locator("section", { has: page.getByRole("heading", { name: "Why" }) });
   await expect(why).toContainText("I'm pregnant");
@@ -144,7 +154,7 @@ test("4: Back from a checklist result reopens the checklist with the box still c
   await toChecklist(page);
 
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(page.getByText("You may be exempt")).toBeVisible();
 
   await answer(page, "Back");
@@ -152,7 +162,7 @@ test("4: Back from a checklist result reopens the checklist with the box still c
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_EN);
   const pregnant = page.getByRole("checkbox", { name: "I'm pregnant", exact: true });
   await expect(pregnant).toBeChecked();
-  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Continue (1 checked)", exact: true })).toBeVisible();
 
   await pregnant.uncheck();
   await answer(page, "None of these apply");
@@ -209,14 +219,48 @@ test("6: checklist 'I'm not sure' with nothing checked goes to ask-county with t
   await expect(tel).toHaveAttribute("href", "tel:+14087583800");
 });
 
-test("6b: checklist 'I'm not sure' with a box checked gives the may-be-exempt result for that box", async ({ page }) => {
+// Fix round 1 ruling: with a box checked, the sticky bar holds only "Continue (n checked)";
+// "I'm not sure" with boxes checked (which the engine maps to the same may-be-exempt result)
+// is no longer offered. Unchecking every box brings the two buttons back.
+test("6b: checking boxes swaps the bar to 'Continue (n checked)'; unchecking brings the two buttons back", async ({ page }) => {
   await goToScreener(page);
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "I'm not sure");
+  await check(page, "I applied for or get unemployment benefits");
+  await expect(page.getByRole("button", { name: "Continue (2 checked)", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "None of these apply" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "I'm not sure" })).toHaveCount(0);
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("You may be exempt. Ask your county to confirm.");
-  await expect(script(page)).toContainText("I'm pregnant");
+  await page.getByRole("checkbox", { name: "I'm pregnant", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "I applied for or get unemployment benefits", exact: true }).uncheck();
+  await expect(continueButton(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "None of these apply" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "I'm not sure" })).toBeVisible();
+});
+
+test("6c: the sticky bar stays on screen while scrolling, never covers the last row, and is hidden in print", async ({
+  page,
+}) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  const bar = page.getByTestId("checklist-actions");
+  const viewport = page.viewportSize()!;
+
+  // At the top of a long list, the bar is pinned to the bottom of the screen.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const top = await bar.boundingBox();
+  expect(Math.round((top?.y ?? 0) + (top?.height ?? 0))).toBeLessThanOrEqual(viewport.height);
+  expect(Math.round((top?.y ?? 0) + (top?.height ?? 0))).toBeGreaterThanOrEqual(viewport.height - 2);
+
+  // At the end, the last row is fully above the bar.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const lastRow = page.locator("fieldset ul > li").last();
+  const rowBox = await lastRow.boundingBox();
+  const barBox = await bar.boundingBox();
+  expect((rowBox?.y ?? 0) + (rowBox?.height ?? 0)).toBeLessThanOrEqual(barBox?.y ?? 0);
+
+  await page.emulateMedia({ media: "print" });
+  await expect(bar).toBeHidden();
 });
 
 test("7: Spanish checklist and result are all Spanish", async ({ page }) => {
@@ -226,9 +270,11 @@ test("7: Spanish checklist and result are all Spanish", async ({ page }) => {
   await expect(page.getByText("Marque todas las que le apliquen.")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Estoy embarazada", exact: true })).toBeVisible();
   expect(await wholePageText(page)).not.toContain("(solo en inglés)");
+  await expect(page.getByText('marque "Solicité o recibo un beneficio por discapacidad" arriba.')).toBeVisible();
+  expect(await wholePageText(page)).not.toContain("regrese y responda");
 
   await check(page, "Estoy embarazada");
-  await answer(page, "Continuar");
+  await pressContinue(page);
 
   const text = await wholePageText(page);
   expect(text).toContain(NOT_DECISION_ES);
@@ -255,7 +301,7 @@ test("8: reload keeps the checklist position and the boxes, before Continue and 
   await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "I'm in CalWORKs and following its work rules", exact: true })).toBeChecked();
 
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(page.getByText("You may be exempt")).toBeVisible();
   await answer(page, "Back");
   await page.reload();
@@ -306,7 +352,7 @@ test("9: a blocked sessionStorage does not break the screener, checklist or resu
   await expect(page.getByText("Question 2 of")).toBeVisible();
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(page.getByText("You may be exempt")).toBeVisible();
 
   expect(errors).toEqual([]);
@@ -318,7 +364,7 @@ test("11: printing a result hides the buttons and keeps the script, phone, date 
   await goToScreener(page);
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(page.getByText("You may be exempt")).toBeVisible();
 
   await page.emulateMedia({ media: "print" });
@@ -413,7 +459,7 @@ test("the Copy button copies the script and says Copied", async ({ page, context
   await goToScreener(page);
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
 
   await answer(page, "Copy");
   await expect(page.getByRole("status")).toHaveText("Copied");
@@ -429,12 +475,12 @@ test("the Copy button is hidden when the Clipboard API is missing", async ({ pag
   await goToScreener(page);
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(script(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy", exact: true })).toHaveCount(0);
 });
 
-test("checklist rows are at least 56px tall and 'More about this' shows the full question", async ({ page }) => {
+test("checklist rows are at least 56px tall, labels use the full width, and 'More about this' shows the full question", async ({ page }) => {
   await goToScreener(page);
   await toChecklist(page);
 
@@ -446,12 +492,23 @@ test("checklist rows are at least 56px tall and 'More about this' shows the full
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(56);
   }
 
-  const summary = page.locator("summary", { hasText: "More" }).first();
+  const summary = page.locator("summary", { hasText: "More about this" }).first();
   const sbox = await summary.boundingBox();
-  expect(sbox?.height ?? 0).toBeGreaterThanOrEqual(48);
-  await page.getByLabel("More about this: I'm pregnant").click();
+  expect(sbox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const pregnantRow = page.locator("fieldset ul > li").filter({ has: page.getByRole("checkbox", { name: "I'm pregnant", exact: true }) });
+  await pregnantRow.locator("summary").click();
   await expect(page.getByText("Any stage of pregnancy counts.")).toBeVisible();
   await expect(page.getByText("Are you pregnant?")).toBeVisible();
+  // Labels span the row: "I'm pregnant" is one line, and most English labels fit on 1-2 lines.
+  let twoLinesOrFewer = 0;
+  for (let i = 0; i < n; i++) {
+    const lines = await rows.nth(i).locator("span").first().evaluate((el) => {
+      const lh = parseFloat(getComputedStyle(el).lineHeight);
+      return Math.round(el.getBoundingClientRect().height / lh);
+    });
+    if (lines <= 2) twoLinesOrFewer++;
+  }
+  expect(twoLinesOrFewer).toBeGreaterThanOrEqual(Math.ceil(n * 0.75));
   // Opening the disclosure does not check the box.
   await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).not.toBeChecked();
 });
@@ -462,6 +519,9 @@ test("I1 (v2): the veteran note shows on the checklist; checklist 'not sure' sho
 
   await expect(page.getByText("Are you a veteran?")).toBeVisible();
   await expect(page.getByText("Being a veteran is no longer an exemption by itself.", { exact: false })).toBeVisible();
+  // The checklist's own note (checklistNote_en), not the question-screen hint's "go back" wording.
+  await expect(page.getByText('check "I applied for or get a disability benefit" above.', { exact: false })).toBeVisible();
+  expect(await wholePageText(page)).not.toContain("go back and answer yes");
   await answer(page, "I'm not sure");
 
   const text = await bodyText(page);
@@ -503,7 +563,7 @@ test("M9 (v2): 'What to bring' is an h2", async ({ page }) => {
   await goToScreener(page);
   await toChecklist(page);
   await check(page, "I'm pregnant");
-  await answer(page, "Continue");
+  await pressContinue(page);
   await expect(whatToBring(page)).toBeVisible();
 });
 

@@ -22,6 +22,11 @@ const RuleSchema = z
     // Short "Check any that apply" checkbox text. Required (non-empty) when kind === 'exemption'.
     label_en: text.optional(),
     label_es: text.nullable().optional(),
+    // Shown in place of the hint when this rule appears as a note on the checklist screen, where
+    // the hint's own wording (e.g. "go back and answer yes to…") doesn't fit. Only for `info`
+    // rules with outcomeIfYes `continue` (the ones the checklist folds in as notes).
+    checklistNote_en: text.optional(),
+    checklistNote_es: text.nullable().optional(),
     sourceUrl: z.url(),
     sourceQuote: text,
     confidence: z.enum(['confirmed', 'unclear']),
@@ -35,6 +40,10 @@ const RuleSchema = z
       ctx.addIssue({ code: 'custom', message: `${r.id}: proofThatHelps_es without proofThatHelps_en` })
     if (r.label_es && !r.label_en)
       ctx.addIssue({ code: 'custom', message: `${r.id}: label_es without label_en` })
+    if (r.checklistNote_es && !r.checklistNote_en)
+      ctx.addIssue({ code: 'custom', message: `${r.id}: checklistNote_es without checklistNote_en` })
+    if (r.checklistNote_en && !(r.kind === 'info' && r.outcomeIfYes === 'continue'))
+      ctx.addIssue({ code: 'custom', message: `${r.id}: checklistNote is only for info rules with outcomeIfYes continue` })
     if (r.kind === 'exemption' && !r.label_en)
       ctx.addIssue({ code: 'custom', message: `${r.id}: label_en is required when kind is exemption` })
     if (r.kind === 'exemption' && r.outcomeIfYes !== 'likely_exempt')

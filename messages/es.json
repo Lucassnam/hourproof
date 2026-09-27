@@ -23,8 +23,7 @@
       "title": "¿Le aplica alguna de estas situaciones?",
       "sub": "Marque todas las que le apliquen.",
       "more": "Más sobre esto",
-      "moreShort": "Más",
-      "continue": "Continuar",
+      "continue": "Continuar ({n, plural, one {# marcada} other {# marcadas}})",
       "none": "Ninguna de estas me aplica",
       "unsure": "No estoy seguro/a"
     }
