@@ -238,8 +238,6 @@ export function Result({
       </div>
 
       {(trackPrimary || trackSecondary) && (
-        // A plain link (not next/link): /log arrives in a later task, and a prefetch of a
-        // page that isn't built yet would only add a 404 to the network log.
         <a
           href="/log"
           className={buttonClasses({
