@@ -12,7 +12,7 @@ import type { Entry, MonthSummary } from "@/lib/hours/types";
 import { EntryForm } from "./EntryForm";
 import { Ring } from "./Ring";
 import { formatDay, formatMonth, formatNumber } from "./format";
-import { mayCountPartly, notesFor } from "./notes";
+import { doesNotCount, mayCountPartly, notesFor } from "./notes";
 
 // The hour log: one route, two views. The list (ring, pace line, notes, entries) is the
 // default; the add/edit form is `?add=1` / `?edit=<id>`. Views switch with the native
@@ -29,7 +29,12 @@ export function HourLog() {
   const t = useTranslations("log");
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const [today] = useState(() => californiaDate());
+  // The day the log opened on picks the demo's starting month (below). `today` itself is
+  // recomputed whenever the phone comes back to this page (a tab left open overnight, a phone
+  // woken from sleep), so the pace line, the ring's month and the form's date limit never
+  // stay on yesterday.
+  const [openedOn] = useState(() => californiaDate());
+  const [today, setToday] = useState(openedOn);
   const currentMonth = monthOf(today);
   const [month, setMonth] = useState(currentMonth);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -54,9 +59,9 @@ export function HourLog() {
         // is never empty in the demo (it always has the job-search entry), so this keys on
         // the day, not on an empty current month.
         if (mode === "demo") {
-          const prev = addMonths(monthOf(today), -1);
+          const prev = addMonths(monthOf(openedOn), -1);
           const hasPrev = entries.some((e) => monthOf(e.date) === prev);
-          if (Number(today.slice(8, 10)) <= 3 && hasPrev) setMonth(prev);
+          if (Number(openedOn.slice(8, 10)) <= 3 && hasPrev) setMonth(prev);
         }
         setLoaded({ store, entries });
       } catch {
@@ -66,7 +71,29 @@ export function HourLog() {
     return () => {
       cancelled = true;
     };
-  }, [today]);
+  }, [openedOn]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
+      setToday(californiaDate());
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
+  // A new month started while the log was showing the old current month: follow it (a month
+  // the person chose to look back at stays put).
+  const shownCurrentMonth = useRef(currentMonth);
+  useEffect(() => {
+    const previous = shownCurrentMonth.current;
+    shownCurrentMonth.current = currentMonth;
+    if (previous !== currentMonth) setMonth((m) => (m === previous ? currentMonth : m));
+  }, [currentMonth]);
 
   const editId = searchParams.get("edit");
   const adding = searchParams.get("add") === "1";
@@ -161,7 +188,8 @@ export function HourLog() {
         {t("title")}
       </h1>
 
-      <nav aria-label={monthName} className="-mt-2 flex items-center justify-between gap-2">
+      {/* At 200% zoom (180px wide) the month name gets its own row above the two buttons. */}
+      <nav aria-label={monthName} className="-mt-2 flex flex-wrap items-center justify-between gap-2">
         <MonthButton
           label={t("prevMonth")}
           direction="prev"
@@ -170,7 +198,7 @@ export function HourLog() {
             setMonth((m) => addMonths(m, -1));
           }}
         />
-        <div className="flex flex-col items-center text-center">
+        <div className="flex min-w-0 flex-1 flex-col items-center text-center max-[260px]:order-first max-[260px]:basis-full">
           <p aria-live="polite" className="font-display text-xl font-semibold">
             {monthName}
           </p>
@@ -236,6 +264,11 @@ export function HourLog() {
           >
             {t("addHours")}
           </button>
+          {/* Quiet reassurance for patchy signal: saving never needs the network. Not shown
+              when this browser can't open the store (the error above says so instead). */}
+          <p className="-mt-3 text-center text-lg text-text-muted" data-testid="offline-note">
+            {t("offline")}
+          </p>
 
           {loaded && (
             <section aria-labelledby="log-list" className="flex flex-col gap-4">
@@ -253,7 +286,7 @@ export function HourLog() {
                     <h3 className="text-lg font-semibold text-text-muted">{formatDay(locale, date)}</h3>
                     <ul className="flex flex-col gap-2">
                       {dayEntries.map((entry) => {
-                        const notCounted = entry.type === "job_search" && !entry.inProgram;
+                        const notCounted = doesNotCount(summary, entry);
                         const typeLabel = t(`types.${entry.type}.label`);
                         return (
                           <li
@@ -352,8 +385,6 @@ function paceLine(
         remainingN: summary.remaining,
         daysLeft: summary.daysLeft,
         perDay: fmt(summary.neededPerDay),
-        // The plural follows the number as shown (1.04 shows as "1", so "hour").
-        perDayN: Math.round(summary.neededPerDay * 10) / 10,
       });
     case "not_started":
     case "future":

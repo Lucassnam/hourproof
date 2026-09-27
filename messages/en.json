@@ -102,8 +102,8 @@
     },
     "pace": {
       "on_track": "On track. At this pace you'll reach {projected} hours.",
-      "behind": "You need {remaining} more {remainingN, plural, one {hour} other {hours}} in {daysLeft, plural, one {# day} other {# days}} — about {perDay} {perDayN, plural, one {hour} other {hours}} a day.",
-      "behindLastDay": "You need {remaining} more {remainingN, plural, one {hour} other {hours}}. Today is the last day of the month.",
+      "behind": "To reach 80 this month: {remaining} more {remainingN, plural, one {hour} other {hours}} in {daysLeft, plural, one {# day} other {# days}} — about {perDay} a day.",
+      "behindLastDay": "To reach 80 this month: {remaining} more {remainingN, plural, one {hour} other {hours}}. Today is the last day of the month.",
       "met": "You have 80 hours this month. Keep proof of every hour.",
       "not_started": "No hours yet this month.",
       "pastMet": "This month is over. You had {counted} hours. Keep proof of every hour.",
@@ -113,6 +113,7 @@
     "notes": {
       "title": "Good to know",
       "job_search_outside_program": "Job search on your own doesn't count. It only counts as part of a job program, like CalFresh E&T, WIOA or Trade Act.",
+      "job_search_no_program": "Job search counts only as part of a job program. None of these hours count this month.",
       "job_search_capped": "Some of your job search hours aren't counted here. In a job program, job search counts only while it is less than your other program hours. Ask your program if yours is different.",
       "workfare_mixed": "Workfare can't be added to your other hours, so the ring doesn't count it. Your county sets your workfare hours from your benefit amount. Ask them how many you need.",
       "workfare_only": "The ring doesn't count workfare. Your county sets your workfare hours from your benefit amount. Ask them how many you need."
@@ -128,6 +129,7 @@
     "saved": "Saved.",
     "deleted": "Deleted.",
     "savedOnPhone": "Your hours are saved only on this phone.",
+    "offline": "Your hours stay saved on this phone, even without signal.",
     "checkRule": "Check if the rule applies to you",
     "types": {
       "work": {
@@ -184,9 +186,9 @@
     "mayCountPartly": "May count partly",
     "rule": {
       "title": "How the rule works",
-      "adds": "Work, volunteering and job programs add up. You need 80 hours a month.",
+      "adds": "If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up.",
       "jobSearch": "Job search counts only as part of a job program. Workfare is checked differently by your county.",
-      "report": "If the work rule applies to you and your hours drop below 20 a week, tell your county within 10 days."
+      "report": "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days."
     }
   },
   "demo": {

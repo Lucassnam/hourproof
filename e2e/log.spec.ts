@@ -54,14 +54,18 @@ test("1. empty state, then 4 hours of volunteering today shows 4 of 80 and the e
   await expect(ring(page)).toHaveAttribute("aria-label", "0 of 80 hours this month");
   await expect(page.getByTestId("pace")).toHaveText("No hours yet this month.");
   await expect(page.getByText("Your hours are saved only on this phone.")).toBeVisible();
+  // M3: the quiet offline line is always there, not only when the phone is offline.
+  await expect(page.getByTestId("offline-note")).toHaveText("Your hours stay saved on this phone, even without signal.");
   // "How the rule works" is collapsed; the 10-day report line lives only inside it.
   const tenDays = page.getByText(
-    "If the work rule applies to you and your hours drop below 20 a week, tell your county within 10 days.",
+    "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days.",
   );
   await expect(tenDays).toBeHidden();
   await page.getByText("How the rule works", { exact: true }).click();
   await expect(tenDays).toBeVisible();
-  await expect(page.getByText("Work, volunteering and job programs add up. You need 80 hours a month.")).toBeVisible();
+  await expect(
+    page.getByText("If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up."),
+  ).toBeVisible();
   await page.getByText("How the rule works", { exact: true }).click();
   await expect(page.getByRole("link", { name: "Check if the rule applies to you" })).toHaveAttribute("href", "/screener");
 
@@ -136,7 +140,11 @@ test("3. job search outside a program shows the note and doesn't change the coun
   // so factually, but no "tell your county" alert appears among the notes.
   await addEntry(page, { type: /^Paid work/, hours: "1" });
   await expect(ring(page)).toHaveAttribute("aria-label", "1 of 80 hours this month");
-  await expect(page.getByTestId("pace")).toHaveText(/^You need \d+ more hours/);
+  // I2: the pace line never says "you need" as if the rule surely applies.
+  await expect(page.getByTestId("pace")).toHaveText(
+    /^To reach 80 this month: \d+ more hours( in \d+ days?\s+— about [\d.,]+ a day\.|\. Today is the last day of the month\.)$/,
+  );
+  expect(await page.innerText("body")).not.toMatch(/\bYou need\b/);
   await expect(page.getByRole("region", { name: "Good to know" })).not.toContainText("10 days");
   await expect(page.getByText(/within 10 days/)).toBeHidden();
 });
@@ -151,6 +159,20 @@ test("3b. capped job search in a program: the row says it may count partly", asy
   await expect(jobSearch).toContainText("May count partly");
   await expect(jobSearch).not.toContainText("Doesn't count");
   await expect(rows(page).filter({ hasText: "Job training or program" })).not.toContainText("May count partly");
+});
+
+test("3c. job search marked in a program with no program hours: its own note, and the row doesn't count", async ({ page }) => {
+  await gotoLog(page);
+  await addEntry(page, { type: /^Paid work/, hours: "2" });
+  await addEntry(page, { type: /^Job search/, hours: "5", inProgram: true });
+  await expect(ring(page)).toHaveAttribute("aria-label", "2 of 80 hours this month");
+  const notes = page.getByRole("region", { name: "Good to know" });
+  await expect(notes).toContainText("Job search counts only as part of a job program. None of these hours count this month.");
+  // Not the "capped" note: there are no program hours to be capped by.
+  await expect(notes).not.toContainText("Some of your job search hours");
+  const jobSearch = rows(page).filter({ hasText: "Job search" });
+  await expect(jobSearch).toContainText("Doesn't count");
+  await expect(jobSearch).not.toContainText("May count partly");
 });
 
 test("4. 25 hours shows an error on the hours field, focuses it, and saves nothing", async ({ page }) => {
@@ -204,8 +226,9 @@ test("6. Spanish: ring label and pace line are in Spanish, with no English on th
 
   await expect(ring(page)).toHaveAttribute("aria-label", "4,5 de 80 horas este mes");
   await expect(page.getByTestId("pace")).toHaveText(
-    /^(Va bien\. A este ritmo llegará a [\d.,]+ horas\.|Necesita [\d.,]+ horas? más( en \d+ días?: unas [\d.,]+ horas? al día\.|\. Hoy es el último día del mes\.))$/,
+    /^(Va bien\. A este ritmo llegará a [\d.,]+ horas\.|Para llegar a 80 este mes: [\d.,]+ horas? más( en \d+ días?, unas [\d.,]+ al día\.|\. Hoy es el último día del mes\.))$/,
   );
+  await expect(page.getByTestId("offline-note")).toHaveText("Sus horas quedan guardadas en este teléfono, aunque no tenga señal.");
   const text = await page.innerText("body");
   expect(text).not.toMatch(/\b(hours|Add|Save|Edit|month|Your|Paid|Loading)\b/);
 });
@@ -240,4 +263,28 @@ test("8. the phone's Back button closes the form without leaving the log", async
   await expect(page.getByRole("heading", { level: 1, name: "Your hours" })).toBeVisible();
   // Focus goes to the list's heading, so a screen reader announces where you are.
   await expect(page.getByRole("heading", { level: 1, name: "Your hours" })).toBeFocused();
+});
+
+test("M6: 'today' follows the clock when the phone comes back (month rollover, the form's date and max)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-09-30T23:55:00-07:00"));
+  await gotoLog(page);
+  await expect(page.getByText("September 2026", { exact: true })).toBeVisible();
+
+  // Midnight passes while the phone sleeps; it comes back to the page.
+  await page.clock.setFixedTime(new Date("2026-10-01T00:05:00-07:00"));
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(page.getByText("October 2026", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next month" })).toBeDisabled();
+
+  await addButton(page).click();
+  const date = page.getByLabel("Date");
+  await expect(date).toHaveValue("2026-10-01");
+  await expect(date).toHaveAttribute("max", "2026-10-01");
+
+  // With the form open, the window regaining focus picks up the next day too; the untouched
+  // default date follows it.
+  await page.clock.setFixedTime(new Date("2026-10-02T08:00:00-07:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(date).toHaveAttribute("max", "2026-10-02");
+  await expect(date).toHaveValue("2026-10-02");
 });

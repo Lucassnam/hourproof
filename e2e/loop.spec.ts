@@ -76,7 +76,7 @@ test("the whole loop: check -> subject -> track 8 hours, then try the demo and e
   expect(demoLabel).not.toBe("0 of 80 hours this month");
   expect(demoLabel).not.toBe("8 of 80 hours this month");
   await expect(page.getByTestId("pace")).toHaveText(
-    /^You need [\d.,]+ more hours?\s+in\s+\d+ days?\s+—\s+about [\d.,]+ hours? a day\.$/,
+    /^To reach 80 this month: [\d.,]+ more hours?\s+in\s+\d+ days?\s+—\s+about [\d.,]+ a day\.$/,
   );
 
   await page.getByRole("button", { name: "Exit demo" }).click();

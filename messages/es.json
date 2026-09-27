@@ -102,8 +102,8 @@
     },
     "pace": {
       "on_track": "Va bien. A este ritmo llegará a {projected} horas.",
-      "behind": "Necesita {remaining} {remainingN, plural, one {hora} other {horas}} más en {daysLeft, plural, one {# día} other {# días}}: unas {perDay} {perDayN, plural, one {hora} other {horas}} al día.",
-      "behindLastDay": "Necesita {remaining} {remainingN, plural, one {hora} other {horas}} más. Hoy es el último día del mes.",
+      "behind": "Para llegar a 80 este mes: {remaining} {remainingN, plural, one {hora} other {horas}} más en {daysLeft, plural, one {# día} other {# días}}, unas {perDay} al día.",
+      "behindLastDay": "Para llegar a 80 este mes: {remaining} {remainingN, plural, one {hora} other {horas}} más. Hoy es el último día del mes.",
       "met": "Ya tiene 80 horas este mes. Guarde prueba de cada hora.",
       "not_started": "Todavía no tiene horas este mes.",
       "pastMet": "Este mes ya terminó. Tuvo {counted} horas. Guarde prueba de cada hora.",
@@ -113,6 +113,7 @@
     "notes": {
       "title": "Bueno saber",
       "job_search_outside_program": "Buscar trabajo por su cuenta no cuenta. Solo cuenta como parte de un programa de empleo, como CalFresh E&T, WIOA o Trade Act.",
+      "job_search_no_program": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Ninguna de estas horas cuenta este mes.",
       "job_search_capped": "Algunas de sus horas de búsqueda de trabajo no se cuentan aquí. En un programa de empleo, la búsqueda de trabajo solo cuenta mientras sea menos que sus otras horas del programa. Pregunte en su programa si su caso es diferente.",
       "workfare_mixed": "El trabajo por beneficios (workfare) no se puede sumar a sus otras horas, así que el círculo no lo cuenta. Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita.",
       "workfare_only": "El círculo no cuenta el trabajo por beneficios (workfare). Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita."
@@ -128,6 +129,7 @@
     "saved": "Guardado.",
     "deleted": "Borrado.",
     "savedOnPhone": "Sus horas se guardan solo en este teléfono.",
+    "offline": "Sus horas quedan guardadas en este teléfono, aunque no tenga señal.",
     "checkRule": "Vea si la regla le aplica",
     "types": {
       "work": {
@@ -184,9 +186,9 @@
     "mayCountPartly": "Puede contar en parte",
     "rule": {
       "title": "Cómo funciona la regla",
-      "adds": "El trabajo, el voluntariado y los programas de empleo se suman. Necesita 80 horas al mes.",
+      "adds": "Si la regla le aplica, necesita 80 horas al mes. El trabajo, el voluntariado y los programas de empleo se suman.",
       "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
-      "report": "Si la regla de trabajo le aplica y sus horas bajan a menos de 20 a la semana, avísele a su condado en un plazo de 10 días."
+      "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
     }
   },
   "demo": {

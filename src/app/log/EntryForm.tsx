@@ -60,7 +60,10 @@ export function EntryForm({
     confirm: `${uid}-confirm`,
   };
 
-  const [date, setDate] = useState(initial?.date ?? today);
+  // A new entry's date follows `today` until the person picks one, so a form left open past
+  // midnight defaults to the new day (HourLog recomputes `today` when the phone comes back).
+  const [pickedDate, setPickedDate] = useState<string | null>(initial?.date ?? null);
+  const date = pickedDate ?? today;
   const [type, setType] = useState<ActivityType>(initial?.type ?? "work");
   const [hoursText, setHoursText] = useState(initial ? formatHoursInput(locale, initial.hours) : "");
   const [inProgram, setInProgram] = useState(initial?.inProgram ?? false);
@@ -190,7 +193,7 @@ export function EntryForm({
           type="date"
           value={date}
           max={today}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => setPickedDate(e.target.value)}
           aria-invalid={dateErrors.length > 0 || undefined}
           aria-describedby={describedBy(dateText !== "" && ids.dateText, dateErrors.length > 0 && ids.dateError)}
           className={inputClass + (dateErrors.length > 0 ? " border-danger" : " border-border")}
