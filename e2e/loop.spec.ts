@@ -86,3 +86,26 @@ test("the whole loop: check -> subject -> track 8 hours, then try the demo and e
   await expect(page.getByRole("region", { name: "Demo — sample data, not yours." })).toHaveCount(0);
   await expect(ring(page)).toHaveAttribute("aria-label", "8 of 80 hours this month");
 });
+
+test("M5: with sessionStorage blocked, Try the demo stays on / and says the demo needs site storage", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "sessionStorage", {
+      configurable: true,
+      get() {
+        throw new Error("blocked");
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try the demo" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "The demo needs" })).toHaveText(
+    "The demo needs your browser to allow site storage.",
+  );
+  await expect(page).toHaveURL(/\/$/);
+  // The real log was never opened in demo mode: no demo banner anywhere.
+  await expect(page.getByRole("region", { name: "Demo — sample data, not yours." })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

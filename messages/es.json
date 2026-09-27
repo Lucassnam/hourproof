@@ -17,7 +17,8 @@
     "cta": "Vea si la regla le aplica",
     "trackHours": "Anote mis horas",
     "tryDemo": "Probar la demostración",
-    "demoNeedsJs": "La demostración necesita que JavaScript esté activado en su navegador."
+    "demoNeedsJs": "La demostración necesita que JavaScript esté activado en su navegador.",
+    "demoNeedsStorage": "La demostración necesita que su navegador permita guardar datos del sitio."
   },
   "screener": {
     "questionOf": "Pregunta {n} de {total}",
