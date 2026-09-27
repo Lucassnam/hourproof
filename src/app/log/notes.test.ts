@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { summarizeMonth } from '@/lib/hours/summarize'
 import type { Entry } from '@/lib/hours/types'
-import { mayCountPartly, notesFor } from './notes'
+import { doesNotCount, mayCountPartly, notesFor } from './notes'
 
 const entry = (date: string, type: Entry['type'], hours: number, extra: Partial<Entry> = {}): Entry => ({
   id: `${date}-${type}-${hours}`,
@@ -53,5 +53,24 @@ describe('log notes', () => {
     const notCapped = summarizeMonth([entry('2026-09-02', 'program', 10), inProgram], '2026-09', '2026-09-26')
     expect(notCapped.flags).not.toContain('job_search_capped')
     expect(mayCountPartly(notCapped, inProgram)).toBe(false)
+  })
+
+  test("in-program job search with 0 program hours: its own note, \"Doesn't count\" tag, never \"May count partly\"", () => {
+    const inProgram = entry("2026-09-03", "job_search", 5, { inProgram: true })
+    const work = entry("2026-09-02", "work", 6)
+    const s = summarizeMonth([work, inProgram], "2026-09", "2026-09-26")
+    expect(notesFor(s)).toEqual(["job_search_no_program"])
+    expect(doesNotCount(s, inProgram)).toBe(true)
+    expect(mayCountPartly(s, inProgram)).toBe(false)
+    expect(doesNotCount(s, work)).toBe(false)
+  })
+
+  test("\"Doesn't count\": job search outside a program always; in-program only when there are no program hours", () => {
+    const outside = entry("2026-09-04", "job_search", 1, { inProgram: false })
+    const inProgram = entry("2026-09-03", "job_search", 5, { inProgram: true })
+    const withProgram = summarizeMonth([entry("2026-09-02", "program", 4), inProgram, outside], "2026-09", "2026-09-26")
+    expect(doesNotCount(withProgram, outside)).toBe(true)
+    expect(doesNotCount(withProgram, inProgram)).toBe(false)
+    expect(mayCountPartly(withProgram, inProgram)).toBe(true)
   })
 })

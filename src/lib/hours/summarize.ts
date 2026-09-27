@@ -115,7 +115,11 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
   if (jobSearchOutsideProgramQuarters > 0) {
     flags.push('job_search_outside_program')
   }
-  if (jobSearchInProgramQuarters > jobSearchCountedQuarters) {
+  if (jobSearchInProgramQuarters > 0 && programQuarters === 0) {
+    // Nothing to be part of: with no program hours this month, none of the
+    // in-program job search counts. That's a different message from "capped".
+    flags.push('job_search_no_program')
+  } else if (jobSearchInProgramQuarters > jobSearchCountedQuarters) {
     flags.push('job_search_capped')
   }
 

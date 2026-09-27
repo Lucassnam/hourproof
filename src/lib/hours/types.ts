@@ -27,7 +27,12 @@ export type Entry = {
   createdAt: string /* ISO */
 }
 
-export type Flag = 'workfare_mixed' | 'job_search_outside_program' | 'job_search_capped' | 'behind_pace'
+export type Flag =
+  | 'workfare_mixed'
+  | 'job_search_outside_program'
+  | 'job_search_no_program' /* in-program job search, but 0 program hours this month: none of it counts */
+  | 'job_search_capped' /* in-program job search, program hours > 0, some of it over the cap */
+  | 'behind_pace'
 
 export type MonthStatus = 'met' | 'on_track' | 'behind' | 'not_started' | 'future'
 

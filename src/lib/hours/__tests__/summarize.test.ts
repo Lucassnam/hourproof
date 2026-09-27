@@ -38,6 +38,21 @@ describe('summarizeMonth', () => {
     const s = summarizeMonth([e('2026-10-03', 'job_search', 5, { inProgram: true })], '2026-10', '2026-10-10')
     expect(s.jobSearchCounted).toBe(0)
   })
+  test('in-program job search with 0 program hours flags job_search_no_program, not job_search_capped', () => {
+    const s = summarizeMonth([e('2026-10-02', 'work', 10), e('2026-10-03', 'job_search', 5, { inProgram: true })], '2026-10', '2026-10-10')
+    expect(s.counted).toBe(10)
+    expect(s.flags).toContain('job_search_no_program')
+    expect(s.flags).not.toContain('job_search_capped')
+  })
+  test('in-program job search capped by program hours flags job_search_capped, not job_search_no_program', () => {
+    const s = summarizeMonth([e('2026-10-02', 'program', 4), e('2026-10-03', 'job_search', 5, { inProgram: true })], '2026-10', '2026-10-10')
+    expect(s.flags).toContain('job_search_capped')
+    expect(s.flags).not.toContain('job_search_no_program')
+  })
+  test('no in-program job search: no job_search_no_program flag (even with 0 program hours)', () => {
+    const s = summarizeMonth([e('2026-10-02', 'work', 10), e('2026-10-03', 'job_search', 5)], '2026-10', '2026-10-10')
+    expect(s.flags).not.toContain('job_search_no_program')
+  })
   test('workfare is not counted and is flagged when mixed', () => {
     const s = summarizeMonth([e('2026-10-02', 'workfare', 20), e('2026-10-03', 'work', 10)], '2026-10', '2026-10-10')
     expect(s.counted).toBe(10)
