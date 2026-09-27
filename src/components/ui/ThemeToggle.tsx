@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { safeGet, safeSet } from "@/lib/storage/safe";
+import { tokens } from "@/lib/theme/tokens";
 
 function readStoredTheme(): "dark" | "light" {
-  try {
-    return window.localStorage.getItem("theme") === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
+  return safeGet("local", "theme") === "dark" ? "dark" : "light";
 }
 
 function writeStoredTheme(mode: "dark" | "light") {
+  safeSet("local", "theme", mode);
+}
+
+// Keeps the single <meta name="theme-color"> (set by the `viewport` export to the light
+// background) in sync when the theme flips. Guarded: the tag may be absent in tests/SSR.
+function setThemeColorMeta(mode: "dark" | "light") {
   try {
-    window.localStorage.setItem("theme", mode);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute("content", mode === "dark" ? tokens.dark.bg : tokens.light.bg);
   } catch {
-    // localStorage may throw in private mode; theme still applies for this session.
+    // Nothing to do if the DOM isn't available.
   }
 }
 
@@ -35,6 +40,7 @@ export function ThemeToggle() {
     } else {
       delete document.documentElement.dataset.theme;
     }
+    setThemeColorMeta(next);
     writeStoredTheme(next);
   };
 

@@ -1,4 +1,5 @@
 import type { Rule, RuleSet } from './schema'
+import { californiaDate } from '../dates'
 
 export type Answer = 'yes' | 'no' | 'unsure'
 export type Answers = Readonly<Record<string, Answer>>
@@ -9,22 +10,9 @@ export type Step =
 export type DisplayOutcome = FinalOutcome | 'possibly_exempt'
 export type Lang = 'en' | 'es'
 
-// The rules are California rules, so "today" is the California calendar date. Using a fixed
-// time zone (not the device's or the server's) also means the server render and the browser
-// agree on which rules are active, so the question count can't differ between them.
-export function californiaDate(now: Date): string {
-  try {
-    // en-CA formats as YYYY-MM-DD.
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Los_Angeles',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(now)
-  } catch {
-    return now.toISOString().slice(0, 10)
-  }
-}
+// Moved to src/lib/dates.ts (shared with the hour tracker); re-exported here so existing
+// `from './engine'` / `from '@/lib/rules/engine'` imports keep working.
+export { californiaDate }
 
 // Rules still in effect on `now`. A rule with `validUntil` applies through that date (inclusive)
 // and is skipped afterwards, exactly as if it weren't in the list.

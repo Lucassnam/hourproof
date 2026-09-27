@@ -19,7 +19,7 @@ const RuleSchema = z
     // but never an empty string when present.
     proofThatHelps_en: text.optional(),
     proofThatHelps_es: text.nullable().optional(),
-    sourceUrl: z.string().url(),
+    sourceUrl: z.url(),
     sourceQuote: text,
     confidence: z.enum(['confirmed', 'unclear']),
     // Last day (inclusive, California date) the rule applies. After it, the engine skips the rule.
@@ -38,8 +38,8 @@ const RuleSetSchema = z
     reviewedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     reviewer: z.string().min(1).nullable(),
     // Shown as "Source" on a result that has no rule attached (e.g. `subject`).
-    generalSourceUrl: z.string().url(),
-    county: z.object({ name: z.string().min(1), phone: z.string().min(3), sourceUrl: z.string().url() }),
+    generalSourceUrl: z.url(),
+    county: z.object({ name: z.string().min(1), phone: z.string().min(3), sourceUrl: z.url() }),
     rules: z.array(RuleSchema).min(1),
   })
   .superRefine((s, ctx) => {

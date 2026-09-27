@@ -9,36 +9,29 @@ import type { RuleSet } from "@/lib/rules/schema";
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { ChoiceButtons } from "@/components/ui/ChoiceButtons";
+import { safeGet, safeRemove, safeSet } from "@/lib/storage/safe";
 import { Result } from "./Result";
 
 const STORAGE_KEY = "hp.screener";
 
 function loadStoredAnswers(): Answers {
+  const raw = safeGet("session", STORAGE_KEY);
+  if (!raw) return {};
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (parsed && typeof parsed === "object") return parsed as Answers;
   } catch {
-    // sessionStorage may be unavailable or throw (private mode); start fresh.
+    // Stored value may be malformed; start fresh.
   }
   return {};
 }
 
 function saveStoredAnswers(answers: Answers) {
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
-  } catch {
-    // Storage may throw; the screener still works for this page view without persistence.
-  }
+  safeSet("session", STORAGE_KEY, JSON.stringify(answers));
 }
 
 function clearStoredAnswers() {
-  try {
-    window.sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nothing to do if storage isn't available.
-  }
+  safeRemove("session", STORAGE_KEY);
 }
 
 export function Screener({ ruleSet }: { ruleSet: RuleSet }) {

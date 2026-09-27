@@ -13,7 +13,8 @@
     "start:e2e": "next start -p 7051",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "measure": "node scripts/measure-js.mjs"
   },
   "dependencies": {
     "next": "^16.3.6",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",

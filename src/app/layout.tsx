@@ -37,11 +37,16 @@ const inter = Inter({
   display: "swap",
 });
 
+// This runs before React (and before the ThemeToggle module loads), so it can't import the
+// storage/theme-color helpers — it's a plain guarded string. The dark background is
+// interpolated from `tokens` at build time so it can't drift from ThemeToggle's own value.
 const THEME_BOOT_SCRIPT = `
 (function () {
   try {
     if (window.localStorage.getItem("theme") === "dark") {
       document.documentElement.dataset.theme = "dark";
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", "${tokens.dark.bg}");
     }
   } catch (e) {}
 })();
