@@ -14,7 +14,10 @@
   "home": {
     "title": "See if the CalFresh work rule applies to you",
     "subtitle": "Answer a few short questions. It takes about 2 minutes.",
-    "cta": "Check if the rule applies to you"
+    "cta": "Check if the rule applies to you",
+    "trackHours": "Track my hours",
+    "tryDemo": "Try the demo",
+    "demoNeedsJs": "The demo needs JavaScript turned on in your browser."
   },
   "screener": {
     "questionOf": "Question {n} of {total}",

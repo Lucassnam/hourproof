@@ -14,7 +14,10 @@
   "home": {
     "title": "Vea si la regla de trabajo de CalFresh le aplica a usted",
     "subtitle": "Responda unas preguntas cortas. Toma unos 2 minutos.",
-    "cta": "Vea si la regla le aplica"
+    "cta": "Vea si la regla le aplica",
+    "trackHours": "Anote mis horas",
+    "tryDemo": "Probar la demostración",
+    "demoNeedsJs": "La demostración necesita que JavaScript esté activado en su navegador."
   },
   "screener": {
     "questionOf": "Pregunta {n} de {total}",
