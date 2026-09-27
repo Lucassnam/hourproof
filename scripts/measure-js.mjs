@@ -1,6 +1,6 @@
-// Measures full page weight (not just JS) on HourProof's home route (/) and
-// /screener, against the spec's "first load under 200 KB of JS on the home
-// route" budget. The budget itself is JS-only; document/CSS/font/image
+// Measures full page weight (not just JS) on HourProof's home route (/),
+// /screener and /log (added in Phase 2, Task 7), against the spec's "first
+// load under 200 KB of JS" budget. The budget itself is JS-only; document/CSS/font/image
 // bytes are reported alongside it for visibility, not checked against 200 KB.
 //
 // Next 16's `next build` output no longer prints a per-route "First Load JS"
@@ -47,7 +47,7 @@ import { spawn } from "node:child_process";
 
 const PORT = 7050;
 const BASE_URL = process.env.MEASURE_BASE_URL ?? `http://localhost:${PORT}`;
-const ROUTES = ["/", "/screener"];
+const ROUTES = ["/", "/screener", "/log"];
 const BUDGET_KB = 200;
 const SERVER_START_TIMEOUT_MS = 60_000;
 const SERVER_STOP_TIMEOUT_MS = 5_000;

@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Screen } from "@/components/ui/Screen";
 import { buttonClasses } from "@/components/ui/Button";
 import { NoScriptNotice } from "@/components/ui/NoScriptNotice";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 import { ruleSet } from "@/lib/rules/load";
 import { setLocale } from "./actions";
 
@@ -17,7 +18,7 @@ export default async function Home() {
   return (
     <>
       <NoScriptNotice county={ruleSet.county} />
-      <Screen languageSwitch={false}>
+      <Screen languageSwitch={false} banner={<DemoBanner />}>
         <form action={setLocale} className="flex gap-3">
           <input type="hidden" name="returnTo" value="/" />
           <button

@@ -25,3 +25,13 @@ for (const mode of ["light", "dark"] as const)
 for (const mode of ["light", "dark"] as const)
   test(`${mode}: bg text on a signal fill >= 4.5`, () =>
     expect(contrast(tokens[mode].bg, tokens[mode].signal)).toBeGreaterThanOrEqual(4.5));
+
+// The demo banner (DemoBanner.tsx) and the delete confirm (log EntryForm.tsx) put `bg` text
+// on a `pace` / `danger` fill; the ring's arc is `proof` next to its `surface-2` track.
+for (const mode of ["light", "dark"] as const)
+  for (const fill of ["pace", "danger"] as const)
+    test(`${mode}: bg text on a ${fill} fill >= 4.5`, () =>
+      expect(contrast(tokens[mode].bg, tokens[mode][fill])).toBeGreaterThanOrEqual(4.5));
+for (const mode of ["light", "dark"] as const)
+  test(`${mode}: the ring's proof arc vs its surface-2 track >= 3`, () =>
+    expect(contrast(tokens[mode].proof, tokens[mode]["surface-2"])).toBeGreaterThanOrEqual(3.0));

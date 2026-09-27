@@ -80,5 +80,106 @@
   },
   "noscript": {
     "message": "This screener needs JavaScript. Call your county:"
+  },
+  "log": {
+    "title": "Your hours",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "pastMonth": "Past month",
+    "loading": "Loading your hours…",
+    "loadError": "This browser can't save hours on this phone. Try another browser, like Chrome.",
+    "noscript": "The hour log needs JavaScript to save hours on your phone.",
+    "ring": {
+      "of80": "of 80 hours",
+      "done": "Done for this month",
+      "label": "{counted} of 80 hours this month",
+      "labelMet": "{counted} of 80 hours this month. Done for this month.",
+      "labelPast": "{counted} of 80 hours in {month}"
+    },
+    "pace": {
+      "on_track": "On track. At this pace you'll reach {projected} hours.",
+      "behind": "You need {remaining} more {remainingN, plural, one {hour} other {hours}} in {daysLeft, plural, one {# day} other {# days}} — about {perDay} {perDayN, plural, one {hour} other {hours}} a day.",
+      "behindLastDay": "You need {remaining} more {remainingN, plural, one {hour} other {hours}}. Today is the last day of the month.",
+      "met": "You have 80 hours this month. Keep proof of every hour.",
+      "not_started": "No hours yet this month.",
+      "pastMet": "You had 80 hours this month. Keep proof of every hour.",
+      "pastBehind": "This month is over. You had {counted} of 80 hours.",
+      "pastEmpty": "This month is over. No hours were saved for it."
+    },
+    "notes": {
+      "title": "Good to know",
+      "job_search_outside_program": "Job search on your own doesn't count. It only counts as part of a job program.",
+      "job_search_capped": "Some of your job search hours don't count. Job search only counts while it is less than your job program hours.",
+      "workfare_mixed": "Workfare hours are checked differently by your county. Ask them.",
+      "workfare_only": "Workfare hours are not added to the 80 here. Your county checks them differently. Ask them.",
+      "behind_pace": "If you're under 20 hours a week, tell your county within 10 days."
+    },
+    "addHours": "Add hours",
+    "listTitle": "Saved hours",
+    "empty": "No hours saved for this month yet.",
+    "emptyWhat": "What counts: paid work, volunteering, and job training programs. Tap “Add hours” after each shift.",
+    "hoursN": "{n} {count, plural, one {hour} other {hours}}",
+    "edit": "Edit",
+    "editLabel": "Edit: {type}, {hours}, {date}",
+    "notCounted": "Doesn't count",
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "savedOnPhone": "Your hours are saved only on this phone.",
+    "checkRule": "Check if the rule applies to you",
+    "types": {
+      "work": {
+        "label": "Paid work",
+        "hint": "A job, gig work, or working for yourself"
+      },
+      "volunteer": {
+        "label": "Volunteering",
+        "hint": "Unpaid work for a nonprofit or community group"
+      },
+      "program": {
+        "label": "Job training or program",
+        "hint": "Like CalFresh E&T or WIOA"
+      },
+      "job_search": {
+        "label": "Job search",
+        "hint": "Looking for and applying to jobs"
+      },
+      "workfare": {
+        "label": "Workfare",
+        "hint": "Work your county gives you for your benefits"
+      }
+    },
+    "form": {
+      "addTitle": "Add hours",
+      "editTitle": "Edit hours",
+      "date": "Date",
+      "type": "What kind of hours?",
+      "hours": "How many hours?",
+      "hoursHint": "Use quarter hours, like 1.5 or 2.25.",
+      "less": "15 minutes less",
+      "more": "15 minutes more",
+      "quickLabel": "Quick picks",
+      "chip": "{n} {n, plural, one {hour} other {hours}}",
+      "inProgram": "Part of a job program?",
+      "inProgramHint": "Like CalFresh E&T or WIOA. Job search only counts when it is part of one.",
+      "place": "Where? (optional)",
+      "note": "Note (optional)",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this entry? You can't undo this.",
+      "deleteYes": "Yes, delete",
+      "deleteNo": "Keep it",
+      "saveError": "Couldn't save on this phone. Please try again.",
+      "errors": {
+        "bad_date": "Pick a date that is today or earlier.",
+        "bad_hours": "Enter hours from 0.25 to 24, in quarter hours (like 1.5).",
+        "too_many_hours_that_day": "That's more than 24 hours on this day, counting your other entries for it.",
+        "in_program_only_for_job_search": "Only job search can be marked as part of a job program."
+      }
+    }
+  },
+  "demo": {
+    "banner": "Demo — sample data, not yours.",
+    "exit": "Exit demo"
   }
 }
