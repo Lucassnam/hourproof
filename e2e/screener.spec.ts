@@ -1,8 +1,28 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Screener v2 (Phase 2, Task 4): scope questions, one "Check any that apply" checklist, then
+// the trailing info questions. Screen counts are read from the page, never hard-coded: the
+// waived-county question (validUntil 2026-10-31) drops out on Nov 1, 2026.
+
+const CHECKLIST_EN = "Do any of these apply to you?";
+const CHECKLIST_ES = "¿Le aplica alguna de estas situaciones?";
+const MEETING_EN = /Right now, do you work, volunteer or go to an approved program/;
+const MEETING_ES = /^En este momento, ¿trabaja/;
+const UNFIT_EN = /Has any of this happened to you/;
+const NOT_DECISION_EN = "This is not a decision. Only your county can decide.";
+const NOT_DECISION_ES = "Esto no es una decisión. Solo su condado puede decidir.";
+const GENERAL_SOURCE = "https://cdss.ca.gov/Portals/9/Additional-Resources/Letters-and-Notices/ACLs/2026/26-29.pdf";
+
 async function goToScreener(page: Page) {
   await page.goto("/");
   await page.getByRole("link", { name: "Check if the rule applies to you" }).click();
+  await expect(page).toHaveURL(/\/screener$/);
+}
+
+async function chooseSpanishAndStart(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Español" }).click();
+  await page.getByRole("link", { name: "Vea si la regla le aplica" }).click();
   await expect(page).toHaveURL(/\/screener$/);
 }
 
@@ -14,118 +34,260 @@ async function bodyText(page: Page): Promise<string> {
   return page.innerText("body");
 }
 
-// Answers "No" until the question heading matches `heading`. Counting fixed numbers of "No"
-// would break on Nov 1, 2026, when the waived-county question (validUntil 2026-10-31) drops out.
-async function answerNoUntil(page: Page, heading: RegExp) {
-  for (let i = 0; i < 25; i++) {
-    const h1 = page.getByRole("heading", { level: 1 });
-    await expect(h1).toBeVisible();
-    if (heading.test((await h1.textContent()) ?? "")) return;
-    await answer(page, "No");
-  }
-  throw new Error(`never reached a question matching ${heading}`);
+// Every piece of text in the page body, visible or not (print-only lines, closed <details>),
+// minus <script> contents (the RSC payload carries every message, including the gated ones).
+async function wholePageText(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const clone = document.body.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("script").forEach((s) => s.remove());
+    return clone.textContent ?? "";
+  });
 }
 
-const MEETING_EN = /Right now, do you work, volunteer or go to an approved program/;
+async function h1Text(page: Page): Promise<string> {
+  const h1 = page.getByRole("heading", { level: 1 });
+  await expect(h1).toBeVisible();
+  return (await h1.textContent()) ?? "";
+}
 
-test("English: answering no to everything until meeting_80_hours, then yes, shows the meeting-requirement result", async ({
-  page,
-}) => {
+// Answers "No" until the level-1 heading matches `heading`. Returns how many screens were answered.
+async function answerNoUntil(page: Page, heading: RegExp | string, no = "No"): Promise<number> {
+  for (let i = 0; i < 10; i++) {
+    const text = await h1Text(page);
+    if (typeof heading === "string" ? text === heading : heading.test(text)) return i;
+    await answer(page, no);
+  }
+  throw new Error(`never reached a screen matching ${heading}`);
+}
+
+async function toChecklist(page: Page): Promise<number> {
+  return answerNoUntil(page, CHECKLIST_EN);
+}
+
+async function check(page: Page, label: string) {
+  await page.getByRole("checkbox", { name: label, exact: true }).check();
+}
+
+function whatToBring(page: Page, name = "What to bring") {
+  return page.getByRole("heading", { level: 2, name });
+}
+
+function script(page: Page) {
+  return page.getByTestId("county-script");
+}
+
+// ---------------------------------------------------------------------------
+// The 12 cases from the Task 4 brief
+// ---------------------------------------------------------------------------
+
+test("1: English subject path takes at most 5 screens and ends at 'Start tracking my hours'", async ({ page }) => {
   await goToScreener(page);
 
-  // "No" to every rule before meeting_80_hours (the final rule), then "Yes".
-  await answerNoUntil(page, MEETING_EN);
-  await answer(page, "Yes");
+  let screens = await toChecklist(page);
+  await answer(page, "None of these apply");
+  screens += 1;
+  screens += await answerNoUntil(page, /The rule likely applies to you/);
 
+  expect(screens).toBeLessThanOrEqual(5);
   const text = await bodyText(page);
-  expect(text).toContain("you're meeting it");
-  expect(text).toContain("This is not a decision. Only your county can decide.");
+  expect(text).toContain("At your next CalFresh renewal, you may need 80 hours a month");
+  expect(text).toContain("Start tracking now so you have proof ready.");
+  expect(text).toContain(NOT_DECISION_EN);
+
+  const track = page.getByRole("link", { name: "Start tracking my hours" });
+  await expect(track).toBeVisible();
+  await expect(track).toHaveAttribute("href", "/log");
+  await expect(whatToBring(page)).toHaveCount(0);
+  await expect(script(page)).toHaveCount(0); // countyScript() has none for `subject`
 });
 
-test("Pregnant path shows possibly-exempt result and never shows 'likely exempt' text", async ({ page }) => {
+test("2: pregnant path gives 'You may be exempt', what to bring, and a script naming it", async ({ page }) => {
   await goToScreener(page);
+  await toChecklist(page);
 
-  await answerNoUntil(page, /pregnant/i); // age_scope, waived_county_scope (until Oct 31), child_under_14
-  await answer(page, "Yes"); // pregnant
+  const cont = page.getByRole("button", { name: "Continue", exact: true });
+  await expect(cont).toBeDisabled(); // nothing checked yet
+  await check(page, "I'm pregnant");
+  await expect(cont).toBeEnabled();
+  await cont.click();
 
-  const text = await bodyText(page);
-  expect(text).toContain("You may be exempt");
-  expect(text.toLowerCase()).not.toContain("likely exempt");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("You may be exempt. Ask your county to confirm.");
+  expect((await wholePageText(page)).toLowerCase()).not.toContain("likely exempt");
+  expect((await bodyText(page)).toLowerCase()).not.toContain("likely exempt");
+  await expect(whatToBring(page)).toBeVisible();
+  await expect(page.getByText("Telling the county is usually enough.")).toBeVisible();
+  await expect(script(page)).toContainText("I'm pregnant");
+  await expect(page.getByText(NOT_DECISION_EN)).toBeVisible();
 });
 
-// Task 3 (screener engine v2) replaced the per-rule exemption walkthrough with a single
-// checklist Step. Going back into a real checklist re-shows the same checked boxes; it does
-// not reopen "the pregnant question" specifically, since the Phase 1 temporary UI adapter
-// (Screener.tsx) has already folded every exemption id into the checklist's finalized
-// answers by the time a result exists. Restored in Task 4, when the checklist gets its real
-// checkbox UI and a matching back behavior.
-test.fixme("Back after a result returns to the question that produced it, not the result", async ({ page }) => {
+test("3: two exemptions checked show both labels under Why and both proofs under What to bring", async ({ page }) => {
   await goToScreener(page);
+  await toChecklist(page);
 
-  await answerNoUntil(page, /pregnant/i); // age_scope, waived_county_scope (until Oct 31), child_under_14
-  await answer(page, "Yes"); // pregnant -> result
+  await check(page, "I'm pregnant");
+  await check(page, "I applied for or get unemployment benefits");
+  await answer(page, "Continue");
 
+  const why = page.locator("section", { has: page.getByRole("heading", { name: "Why" }) });
+  await expect(why).toContainText("I'm pregnant");
+  await expect(why).toContainText("I applied for or get unemployment benefits");
+
+  const bring = page.locator("section", { has: whatToBring(page) });
+  await expect(bring).toContainText("Telling the county is usually enough.");
+  await expect(bring).toContainText("Your EDD claim confirmation or payment notice.");
+
+  await expect(script(page)).toContainText("I'm pregnant; I applied for or get unemployment benefits");
+});
+
+test("4: Back from a checklist result reopens the checklist with the box still checked", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
   await expect(page.getByText("You may be exempt")).toBeVisible();
 
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await answer(page, "Back");
 
-  // Back from a result undoes the answer that produced it, returning to that same question.
-  await expect(page.getByRole("heading", { name: /pregnant/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_EN);
+  const pregnant = page.getByRole("checkbox", { name: "I'm pregnant", exact: true });
+  await expect(pregnant).toBeChecked();
+  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
 
-  await answer(page, "No"); // pregnant -> no
+  await pregnant.uncheck();
+  await answer(page, "None of these apply");
 
-  // Should now be on the NEXT question, not back on the result screen.
-  await expect(page.getByText("You may be exempt")).not.toBeVisible();
-  await expect(page.getByRole("heading")).toBeVisible();
+  // The next question, not the result and not the checklist.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(UNFIT_EN);
+  await expect(page.getByText("You may be exempt")).toHaveCount(0);
 });
 
-test("Reloading on question 3 resumes at question 3", async ({ page }) => {
+test("5: 'Not sure' on the 20-hours question never says 'you are meeting it' (English)", async ({ page }) => {
   await goToScreener(page);
-
-  await answer(page, "No"); // age_scope -> question 2
-  await answer(page, "No"); // waived_county_scope -> question 3
-
-  const beforeReload = await page.getByRole("heading").textContent();
-  await expect(page.getByText("Question 3 of")).toBeVisible();
-
-  await page.reload();
-
-  await expect(page.getByText("Question 3 of")).toBeVisible();
-  const afterReload = await page.getByRole("heading").textContent();
-  expect(afterReload).toBe(beforeReload);
-});
-
-test("Spanish: shows 'Sí' and the Spanish not-a-decision line on a result", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Español" }).click();
-
-  await page.getByRole("link", { name: "Vea si la regla le aplica" }).click();
-  await expect(page).toHaveURL(/\/screener$/);
-
-  await expect(page.getByRole("button", { name: "Sí" })).toBeVisible();
-
-  await answer(page, "No estoy seguro");
-
-  const text = await bodyText(page);
-  expect(text).toContain("Esto no es una decisión. Solo su condado puede decidir.");
-});
-
-test("Unsure on question 1 leads to the ask-county result with a tel: link", async ({ page }) => {
-  await goToScreener(page);
-
+  await toChecklist(page);
+  await answer(page, "None of these apply");
+  await answerNoUntil(page, MEETING_EN);
   await answer(page, "Not sure");
 
-  const text = await bodyText(page);
-  expect(text).toContain("Your county can");
-  expect(text).toContain("What proof helps");
-  await expect(page.getByText("What proof helps")).toBeVisible();
-
-  const telLink = page.locator('a[href^="tel:"]');
-  await expect(telLink).toBeVisible();
-  await expect(telLink).toHaveAttribute("href", "tel:+14087583800");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("We can't tell from your answers. Your county can.");
+  const text = await wholePageText(page);
+  expect(text).not.toContain("you are meeting it");
+  expect(text).not.toContain("you're meeting it");
+  expect(text).not.toContain("This is NOT an exemption");
+  await expect(whatToBring(page)).toHaveCount(0);
+  await expect(script(page)).toContainText("not sure");
+  await expect(page.getByText(/You weren't sure about: Right now, do you work/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Track hours while you check" })).toHaveAttribute("href", "/log");
 });
 
-test("A blocked sessionStorage does not break the screener", async ({ page }) => {
+test("5 (es): 'No estoy seguro' on the 20-hours question never says 'lo está cumpliendo'", async ({ page }) => {
+  await chooseSpanishAndStart(page);
+  await answerNoUntil(page, CHECKLIST_ES);
+  await answer(page, "Ninguna de estas me aplica");
+  await answerNoUntil(page, MEETING_ES);
+  await answer(page, "No estoy seguro");
+
+  const text = await wholePageText(page);
+  expect(text).toContain("No podemos saberlo con sus respuestas.");
+  expect(text).not.toContain("lo está cumpliendo");
+  expect(text).not.toContain("la está cumpliendo");
+  await expect(whatToBring(page, "Qué llevar")).toHaveCount(0);
+  await expect(script(page)).toContainText("No estoy seguro/a");
+  expect(text).toContain(NOT_DECISION_ES);
+});
+
+test("6: checklist 'I'm not sure' with nothing checked goes to ask-county with the county tel: link", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  await answer(page, "I'm not sure");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("We can't tell from your answers. Your county can.");
+  await expect(page.getByText("You weren't sure about: the list of situations")).toBeVisible();
+  await expect(whatToBring(page)).toHaveCount(0);
+  const tel = page.locator('a[href^="tel:"]');
+  await expect(tel).toBeVisible();
+  await expect(tel).toHaveAttribute("href", "tel:+14087583800");
+});
+
+test("6b: checklist 'I'm not sure' with a box checked gives the may-be-exempt result for that box", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "I'm not sure");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("You may be exempt. Ask your county to confirm.");
+  await expect(script(page)).toContainText("I'm pregnant");
+});
+
+test("7: Spanish checklist and result are all Spanish", async ({ page }) => {
+  await chooseSpanishAndStart(page);
+  await answerNoUntil(page, CHECKLIST_ES);
+
+  await expect(page.getByText("Marque todas las que le apliquen.")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Estoy embarazada", exact: true })).toBeVisible();
+  expect(await wholePageText(page)).not.toContain("(solo en inglés)");
+
+  await check(page, "Estoy embarazada");
+  await answer(page, "Continuar");
+
+  const text = await wholePageText(page);
+  expect(text).toContain(NOT_DECISION_ES);
+  expect(text).toContain("Es posible");
+  expect(text).not.toContain("Es probable que usted esté exento");
+  expect(text).toContain("Por lo general, basta con decírselo al condado.");
+  expect(text).not.toContain("(solo en inglés)");
+  await expect(whatToBring(page, "Qué llevar")).toBeVisible();
+  await expect(script(page)).toContainText("Estoy embarazada");
+});
+
+test("8: reload keeps the checklist position and the boxes, before Continue and after Back", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  const position = await page.getByText(/^Question \d+ of \d+$/).textContent();
+
+  await check(page, "I'm pregnant");
+  await check(page, "I'm in CalWORKs and following its work rules");
+  await page.reload();
+
+  // Position persists, and so do the unsubmitted boxes (kept as a draft in sessionStorage).
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_EN);
+  await expect(page.getByText(position ?? "")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "I'm in CalWORKs and following its work rules", exact: true })).toBeChecked();
+
+  await answer(page, "Continue");
+  await expect(page.getByText("You may be exempt")).toBeVisible();
+  await answer(page, "Back");
+  await page.reload();
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_EN);
+  await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "I'm in CalWORKs and following its work rules", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "I'm in school or training at least half-time", exact: true })).not.toBeChecked();
+});
+
+test("8b: answers saved under another rules version are dropped", async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        sessionStorage.setItem(
+          "hp.screener.v2",
+          JSON.stringify({ rulesVersion: "old-version", answers: { age_scope: "no", waived_county_scope: "no" } }),
+        );
+      }
+    } catch {}
+  });
+  await page.goto("/screener");
+  await expect(page.getByText("Question 1 of")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Are you under 18, or 65 or older?");
+  // A saved position under the current version does restore.
+  await answer(page, "No");
+  await page.reload();
+  await expect(page.getByText("Question 2 of")).toBeVisible();
+});
+
+test("9: a blocked sessionStorage does not break the screener, checklist or result", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
 
@@ -139,67 +301,173 @@ test("A blocked sessionStorage does not break the screener", async ({ page }) =>
   });
 
   await goToScreener(page);
-
   await expect(page.getByText("Question 1 of")).toBeVisible();
   await answer(page, "No");
   await expect(page.getByText("Question 2 of")).toBeVisible();
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
+  await expect(page.getByText("You may be exempt")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
 
-// ---------------------------------------------------------------------------
-// Final-review fix wave (2026-09-25)
-// ---------------------------------------------------------------------------
+test("11: printing a result hides the buttons and keeps the script, phone, date and not-a-decision line", async ({
+  page,
+}) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
+  await expect(page.getByText("You may be exempt")).toBeVisible();
 
-async function chooseSpanishAndStart(page: Page) {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Español" }).click();
-  await page.getByRole("link", { name: "Vea si la regla le aplica" }).click();
-  await expect(page).toHaveURL(/\/screener$/);
-}
+  await page.emulateMedia({ media: "print" });
 
-const GENERAL_SOURCE = "https://cdss.ca.gov/Portals/9/Additional-Resources/Letters-and-Notices/ACLs/2026/26-29.pdf";
+  // A CSS locator, not getByRole: display:none buttons leave the accessibility tree entirely.
+  const buttons = page.locator("button");
+  const count = await buttons.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i++) await expect(buttons.nth(i)).toBeHidden();
+  await expect(page.locator('a[href^="tel:"]')).toBeHidden();
+  await expect(page.getByRole("link", { name: "Source" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Switch to Spanish" })).toBeHidden();
 
-test("C1: Spanish question 1 is in Spanish, with no '(solo en inglés)' tag", async ({ page }) => {
-  await chooseSpanishAndStart(page);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(script(page)).toBeVisible();
+  await expect(script(page)).toContainText("I'm pregnant");
+  await expect(whatToBring(page)).toBeVisible();
+  await expect(page.getByText("Santa Clara County")).toBeVisible();
+  // The phone as plain text (the call button, which also shows it, is hidden on paper).
+  await expect(page.locator("p").filter({ hasText: /^\(408\) 758-3800$/ })).toBeVisible();
+  await expect(page.getByText(/^Date: [A-Z][a-z]+ \d{1,2}, \d{4}$/)).toBeVisible();
+  await expect(page.getByText(NOT_DECISION_EN)).toBeVisible();
 
-  await expect(page.getByText("Pregunta 1 de")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("¿Tiene usted menos de 18 años, o 65 años o más?");
-  await expect(page.getByText("siga respondiendo las preguntas")).toBeVisible(); // Spanish hint
-  const text = await bodyText(page);
-  expect(text).not.toContain("(solo en inglés)");
-  expect(text).not.toContain("Are you under 18");
+  await page.emulateMedia({ media: "screen" });
+  await expect(page.getByText(/^Date: /)).toBeHidden();
+  await expect(page.getByRole("button", { name: "Print or save this page" })).toBeVisible();
 });
 
-test("C1: every Spanish question and the final result have no English rule text", async ({ page }) => {
-  await chooseSpanishAndStart(page);
+test("12: switching language on the checklist keeps the position and the checked box", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  const n = (await page.getByText(/^Question \d+ of \d+$/).textContent())?.match(/Question (\d+)/)?.[1];
+  await check(page, "I'm pregnant");
 
-  for (let i = 0; i < 25; i++) {
-    const h1 = page.getByRole("heading", { level: 1 });
-    await expect(h1).toBeVisible();
-    const text = await bodyText(page);
-    expect(text).not.toContain("(solo en inglés)");
-    if (!text.includes("Pregunta ")) break; // reached the result
-    expect((await h1.textContent()) ?? "").toMatch(/^(¿|En este momento)/);
-    await answer(page, "No");
+  const es = page.getByRole("button", { name: "Switch to Spanish" });
+  const box = await es.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(48);
+  await es.click();
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_ES);
+  await expect(page.getByText(`Pregunta ${n} de`)).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Estoy embarazada", exact: true })).toBeChecked();
+  expect(await bodyText(page)).not.toContain("(solo en inglés)");
+  await expect(page.getByRole("button", { name: "Cambiar a español" })).toHaveAttribute("aria-current", "true");
+
+  await page.getByRole("button", { name: "Cambiar a inglés" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(CHECKLIST_EN);
+  await expect(page.getByText(`Question ${n} of`)).toBeVisible();
+});
+
+test("12b: switching language on a question keeps the question number and shows Spanish", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  await answer(page, "None of these apply");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(UNFIT_EN);
+  const n = (await page.getByText(/^Question \d+ of \d+$/).textContent())?.match(/Question (\d+)/)?.[1];
+  const english = await h1Text(page);
+
+  await page.getByRole("button", { name: "Switch to Spanish" }).click();
+  await expect(page.getByText(`Pregunta ${n} de`)).toBeVisible();
+  const spanish = page.getByRole("heading", { level: 1 });
+  await expect(spanish).not.toHaveText(english);
+  await expect(spanish).toHaveText(/^¿/);
+  expect(await bodyText(page)).not.toContain("(solo en inglés)");
+
+  await page.getByRole("button", { name: "Cambiar a inglés" }).click();
+  await expect(page.getByText(`Question ${n} of`)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(english);
+});
+
+// ---------------------------------------------------------------------------
+// Result details
+// ---------------------------------------------------------------------------
+
+test("meeting the requirement: 'you're meeting it', start tracking, no what to bring", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+  await answer(page, "None of these apply");
+  await answerNoUntil(page, MEETING_EN);
+  await answer(page, "Yes");
+
+  const text = await bodyText(page);
+  expect(text).toContain("you're meeting it");
+  expect(text).toContain(NOT_DECISION_EN);
+  await expect(page.getByRole("link", { name: "Start tracking my hours" })).toHaveAttribute("href", "/log");
+  await expect(whatToBring(page)).toHaveCount(0);
+});
+
+test("the Copy button copies the script and says Copied", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await goToScreener(page);
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
+
+  await answer(page, "Copy");
+  await expect(page.getByRole("status")).toHaveText("Copied");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("I'm pregnant");
+  expect(copied).toContain("Can you check my case?");
+});
+
+test("the Copy button is hidden when the Clipboard API is missing", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, get: () => undefined });
+  });
+  await goToScreener(page);
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
+  await expect(script(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy", exact: true })).toHaveCount(0);
+});
+
+test("checklist rows are at least 56px tall and 'More about this' shows the full question", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
+
+  const rows = page.locator("ul > li > label");
+  const n = await rows.count();
+  expect(n).toBeGreaterThanOrEqual(10);
+  for (let i = 0; i < n; i++) {
+    const box = await rows.nth(i).boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(56);
   }
-  const result = await bodyText(page);
-  expect(result).toContain("Esto no es una decisión. Solo su condado puede decidir.");
-  expect(result).toContain("En su próxima renovación de CalFresh");
+
+  const summary = page.locator("summary", { hasText: "More" }).first();
+  const sbox = await summary.boundingBox();
+  expect(sbox?.height ?? 0).toBeGreaterThanOrEqual(48);
+  await page.getByLabel("More about this: I'm pregnant").click();
+  await expect(page.getByText("Any stage of pregnancy counts.")).toBeVisible();
+  await expect(page.getByText("Are you pregnant?")).toBeVisible();
+  // Opening the disclosure does not check the box.
+  await expect(page.getByRole("checkbox", { name: "I'm pregnant", exact: true })).not.toBeChecked();
 });
 
-test("M1: Spanish possibly-exempt result is conditional and never says 'Es probable que usted esté exento'", async ({ page }) => {
-  await chooseSpanishAndStart(page);
+test("I1 (v2): the veteran note shows on the checklist; checklist 'not sure' shows no What to bring", async ({ page }) => {
+  await goToScreener(page);
+  await toChecklist(page);
 
-  await answerNoUntil(page, /embarazada/);
-  await answer(page, "Sí");
+  await expect(page.getByText("Are you a veteran?")).toBeVisible();
+  await expect(page.getByText("Being a veteran is no longer an exemption by itself.", { exact: false })).toBeVisible();
+  await answer(page, "I'm not sure");
 
   const text = await bodyText(page);
-  expect(text).toContain("Es posible");
-  expect(text).not.toContain("Es probable que usted esté exento");
-  expect(text).toContain("Esto no es una decisión. Solo su condado puede decidir.");
-  expect(text).toContain("Por lo general, basta con decírselo al condado."); // Spanish proof
-  expect(text).not.toContain("(solo en inglés)");
+  expect(text).toContain("You weren't sure about: the list of situations");
+  expect(text).not.toContain("What to bring");
+  expect(text).toContain(NOT_DECISION_EN);
 });
 
 test("I1: question-time guidance shows as a hint on the question, not on the result", async ({ page }) => {
@@ -209,36 +477,40 @@ test("I1: question-time guidance shows as a hint on the question, not on the res
   await answer(page, "Yes"); // age_scope -> not_subject
 
   const text = await bodyText(page);
+  expect(text).toContain("You answered yes to: Are you under 18, or 65 or older?");
   expect(text).toContain("The county already has your birth date.");
   expect(text).not.toContain("keep answering the questions");
+  await expect(whatToBring(page)).toHaveCount(0);
 });
 
-// Task 3 (screener engine v2) turned veteran_info into a checklist "note" (continue-outcome
-// info folded into the checklist screen for passive display), so it's no longer asked as its
-// own yes/no/unsure question. Restored in Task 4, once the real checklist UI has a place to
-// show notes.
-test.fixme("I1: the veteran hint shows on its question; unsure there shows no empty 'What proof helps'", async ({ page }) => {
+test("Unsure on question 1 leads to the ask-county result with a tel: link and no What to bring", async ({ page }) => {
   await goToScreener(page);
-
-  await answerNoUntil(page, /Are you a veteran\?/);
-  await expect(page.getByText("go back and answer yes to the disability benefits question")).toBeVisible();
   await answer(page, "Not sure");
 
   const text = await bodyText(page);
-  expect(text).toContain("You weren't sure about: Are you a veteran?");
-  expect(text).not.toContain("What proof helps");
-  expect(text).toContain("This is not a decision. Only your county can decide.");
+  expect(text).toContain("Your county can");
+  expect(text).toContain("You weren't sure about: Are you under 18, or 65 or older?");
+  expect(text).not.toContain("The county already has your birth date."); // a proof is never shown for unsure
+  await expect(whatToBring(page)).toHaveCount(0);
+  await expect(script(page)).toContainText("I'm not sure if the CalFresh work rule applies to me.");
+
+  const telLink = page.locator('a[href^="tel:"]');
+  await expect(telLink).toBeVisible();
+  await expect(telLink).toHaveAttribute("href", "tel:+14087583800");
 });
 
-test("M9: 'What proof helps' is an h2", async ({ page }) => {
+test("M9 (v2): 'What to bring' is an h2", async ({ page }) => {
   await goToScreener(page);
-  await answer(page, "Not sure");
-  await expect(page.getByRole("heading", { level: 2, name: "What proof helps" })).toBeVisible();
+  await toChecklist(page);
+  await check(page, "I'm pregnant");
+  await answer(page, "Continue");
+  await expect(whatToBring(page)).toBeVisible();
 });
 
 test("M2 + M3 + I5: the subject result uses the general CDSS source, hedged copy and a 48px Source link", async ({ page }) => {
   await goToScreener(page);
-
+  await toChecklist(page);
+  await answer(page, "None of these apply");
   await answerNoUntil(page, MEETING_EN);
   await answer(page, "No"); // -> subject
 
@@ -265,38 +537,56 @@ test("M5 + M10: buttons have a visible border and the phone number never wraps",
   await expect(num).toHaveCSS("white-space", "nowrap");
 });
 
+// ---------------------------------------------------------------------------
+// Spanish (Phase 1 C1 / M1, adapted)
+// ---------------------------------------------------------------------------
+
+test("Spanish: shows 'Sí' and the Spanish not-a-decision line on a result", async ({ page }) => {
+  await chooseSpanishAndStart(page);
+  await expect(page.getByRole("button", { name: "Sí" })).toBeVisible();
+  await answer(page, "No estoy seguro");
+  expect(await bodyText(page)).toContain(NOT_DECISION_ES);
+});
+
+test("C1: Spanish question 1 is in Spanish, with no '(solo en inglés)' tag", async ({ page }) => {
+  await chooseSpanishAndStart(page);
+
+  await expect(page.getByText("Pregunta 1 de")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("¿Tiene usted menos de 18 años, o 65 años o más?");
+  await expect(page.getByText("siga respondiendo las preguntas")).toBeVisible(); // Spanish hint
+  const text = await bodyText(page);
+  expect(text).not.toContain("(solo en inglés)");
+  expect(text).not.toContain("Are you under 18");
+});
+
+test("C1: every Spanish screen and the final result have no English rule text", async ({ page }) => {
+  await chooseSpanishAndStart(page);
+
+  for (let i = 0; i < 10; i++) {
+    const heading = await h1Text(page);
+    const text = await wholePageText(page);
+    expect(text).not.toContain("(solo en inglés)");
+    if (!(await bodyText(page)).includes("Pregunta ")) break; // reached the result
+    expect(heading).toMatch(/^(¿|En este momento)/);
+    if (heading === CHECKLIST_ES) await answer(page, "Ninguna de estas me aplica");
+    else await answer(page, "No");
+  }
+  const result = await bodyText(page);
+  expect(result).toContain(NOT_DECISION_ES);
+  expect(result).toContain("En su próxima renovación de CalFresh");
+  await expect(page.getByRole("link", { name: "Empezar a registrar mis horas" })).toHaveAttribute("href", "/log");
+});
+
+// ---------------------------------------------------------------------------
+// Navigation, icons, no-JS
+// ---------------------------------------------------------------------------
+
 test("I6: Back on question 1 goes home", async ({ page }) => {
   await goToScreener(page);
   await expect(page.getByText("Question 1 of")).toBeVisible();
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("link", { name: "Check if the rule applies to you" })).toBeVisible();
-});
-
-test("I6: switching language mid-screener keeps the question number and shows Spanish", async ({ page }) => {
-  await goToScreener(page);
-  await answer(page, "No");
-  await answer(page, "No");
-  await expect(page.getByText("Question 3 of")).toBeVisible();
-  const english = await page.getByRole("heading", { level: 1 }).textContent();
-
-  const es = page.getByRole("button", { name: "Switch to Spanish" });
-  const box = await es.boundingBox();
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
-  expect(box?.width ?? 0).toBeGreaterThanOrEqual(48);
-  await es.click();
-
-  await expect(page.getByText("Pregunta 3 de")).toBeVisible();
-  const spanish = page.getByRole("heading", { level: 1 });
-  await expect(spanish).not.toHaveText(english ?? "");
-  await expect(spanish).toHaveText(/^¿/);
-  expect(await bodyText(page)).not.toContain("(solo en inglés)");
-  await expect(page.getByRole("button", { name: "Cambiar a español" })).toHaveAttribute("aria-current", "true");
-
-  // And back to English, still on question 3.
-  await page.getByRole("button", { name: "Cambiar a inglés" }).click();
-  await expect(page.getByText("Question 3 of")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(english ?? "");
 });
 
 test("M14: the apple-touch-icon is linked and served", async ({ page, request }) => {
@@ -311,7 +601,7 @@ test("M14: the apple-touch-icon is linked and served", async ({ page, request })
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("I3: /screener shows question 1 and the bilingual call-your-county notice", async ({ page }) => {
+  test("10: /screener shows question 1 and the bilingual call-your-county notice", async ({ page }) => {
     await page.goto("/screener");
     const text = await bodyText(page);
     expect(text).toContain("Question 1 of");

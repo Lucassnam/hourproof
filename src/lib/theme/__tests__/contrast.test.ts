@@ -20,3 +20,8 @@ for (const mode of ["light", "dark"] as const)
       test(`border on ${bg} >= 3.0`, () =>
         expect(contrast(tokens[mode].border, tokens[mode][bg])).toBeGreaterThanOrEqual(3.0));
   });
+
+// The "strong" button (Button.tsx) puts `bg`-colored text on a `signal` fill.
+for (const mode of ["light", "dark"] as const)
+  test(`${mode}: bg text on a signal fill >= 4.5`, () =>
+    expect(contrast(tokens[mode].bg, tokens[mode].signal)).toBeGreaterThanOrEqual(4.5));

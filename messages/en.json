@@ -8,7 +8,8 @@
     "callCounty": "Call your county: <num>{phone}</num>",
     "english": "English",
     "spanish": "Español",
-    "source": "Source"
+    "source": "Source",
+    "sourceN": "Source {n}"
   },
   "home": {
     "title": "See if the CalFresh work rule applies to you",
@@ -18,12 +19,32 @@
   "screener": {
     "questionOf": "Question {n} of {total}",
     "englishOnly": "(English only)",
-    "whatProofHelps": "What proof helps"
+    "checklist": {
+      "title": "Do any of these apply to you?",
+      "sub": "Check all that apply.",
+      "more": "More about this",
+      "moreShort": "More",
+      "continue": "Continue",
+      "none": "None of these apply",
+      "unsure": "I'm not sure"
+    }
   },
   "result": {
     "becauseYes": "You answered yes to: {question}",
     "becauseUnsure": "You weren't sure about: {question}",
     "notDecision": "This is not a decision. Only your county can decide.",
+    "checklistUnsure": "the list of situations",
+    "why": "Why",
+    "youChecked": "You checked:",
+    "whatToBring": "What to bring",
+    "whatToSay": "What to say",
+    "sayIntro": "When you call, you can say:",
+    "copy": "Copy",
+    "copied": "Copied",
+    "startTracking": "Start tracking my hours",
+    "trackWhileChecking": "Track hours while you check",
+    "print": "Print or save this page",
+    "date": "Date: {date}",
     "not_subject": {
       "title": "The rule likely doesn't apply to you.",
       "body": "You don't need to report work hours for this rule right now."
@@ -42,7 +63,7 @@
     },
     "subject": {
       "title": "The rule likely applies to you. At your next CalFresh renewal, you may need 80 hours a month of work, volunteering or an approved program.",
-      "body": "Start tracking your hours now so you have proof if your county asks. Ask your county when it starts for you."
+      "body": "Start tracking now so you have proof ready. Ask your county when it starts for you."
     },
     "ask_county": {
       "title": "We can't tell from your answers. Your county can.",

@@ -11,6 +11,8 @@
   --signal: #5b4bdb;
   --danger: #b42318;
   --border: #768091;
+  /* Native controls (the checklist's checkboxes) follow the theme. */
+  color-scheme: light;
 }
 
 [data-theme="dark"] {
@@ -24,6 +26,7 @@
   --signal: #8b7cff;
   --danger: #ff6b6b;
   --border: #6b7688;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -54,5 +57,49 @@ body {
   h2,
   h3 {
     font-family: var(--font-display);
+  }
+}
+
+/*
+ * Print / "Save as PDF" of a screener result. Components mark what to drop with Tailwind's
+ * `print:hidden` and print-only lines (the date, the phone number as text) with
+ * `hidden print:block`; this block handles the page itself. The header (language switch and
+ * theme toggle) and every button are hidden, and the page always prints in the light
+ * palette on white paper, even when the screen is in dark mode. The hex values below repeat
+ * the light tokens on purpose: print always uses the light theme.
+ */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #0e1116;
+    --text-muted: #4b5563;
+    --proof: #127a52;
+    --pace: #9a5b00;
+    --signal: #5b4bdb;
+    --danger: #b42318;
+    --border: #768091;
+    color-scheme: light;
+  }
+
+  header,
+  button,
+  noscript {
+    display: none !important;
+  }
+
+  body {
+    font-size: 14pt;
+  }
+
+  main {
+    max-width: none;
+  }
+
+  section,
+  blockquote {
+    break-inside: avoid;
   }
 }

@@ -8,7 +8,8 @@
     "callCounty": "Llame a su condado: <num>{phone}</num>",
     "english": "English",
     "spanish": "Español",
-    "source": "Fuente"
+    "source": "Fuente",
+    "sourceN": "Fuente {n}"
   },
   "home": {
     "title": "Vea si la regla de trabajo de CalFresh le aplica a usted",
@@ -18,12 +19,32 @@
   "screener": {
     "questionOf": "Pregunta {n} de {total}",
     "englishOnly": "(solo en inglés)",
-    "whatProofHelps": "Qué prueba ayuda"
+    "checklist": {
+      "title": "¿Le aplica alguna de estas situaciones?",
+      "sub": "Marque todas las que le apliquen.",
+      "more": "Más sobre esto",
+      "moreShort": "Más",
+      "continue": "Continuar",
+      "none": "Ninguna de estas me aplica",
+      "unsure": "No estoy seguro/a"
+    }
   },
   "result": {
     "becauseYes": "Usted respondió que sí a: {question}",
     "becauseUnsure": "No estaba seguro/a sobre: {question}",
     "notDecision": "Esto no es una decisión. Solo su condado puede decidir.",
+    "checklistUnsure": "la lista de situaciones",
+    "why": "Por qué",
+    "youChecked": "Usted marcó:",
+    "whatToBring": "Qué llevar",
+    "whatToSay": "Qué decir",
+    "sayIntro": "Cuando llame, puede decir:",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "startTracking": "Empezar a registrar mis horas",
+    "trackWhileChecking": "Registre sus horas mientras confirma",
+    "print": "Imprimir o guardar esta página",
+    "date": "Fecha: {date}",
     "not_subject": {
       "title": "Es probable que la regla no le aplique a usted.",
       "body": "No necesita reportar horas de trabajo para esta regla en este momento."
@@ -42,7 +63,7 @@
     },
     "subject": {
       "title": "Es probable que la regla le aplique a usted. En su próxima renovación de CalFresh, es posible que necesite 80 horas al mes de trabajo, voluntariado o un programa aprobado.",
-      "body": "Empiece a llevar registro de sus horas ahora para tener prueba si su condado se lo pide. Pregúntele a su condado cuándo empieza para usted."
+      "body": "Empiece a registrar sus horas ahora para tener prueba lista. Pregúntele a su condado cuándo empieza para usted."
     },
     "ask_county": {
       "title": "No podemos saberlo con sus respuestas. Su condado sí puede.",

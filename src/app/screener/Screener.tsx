@@ -3,35 +3,46 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { nextStep, goBack, displayOutcome, ruleText, checklistAnswers, CHECKLIST } from "@/lib/rules/engine";
+import { nextStep, goBack, ruleText, checklistAnswers } from "@/lib/rules/engine";
 import type { Answer, Answers, Lang } from "@/lib/rules/engine";
 import type { RuleSet } from "@/lib/rules/schema";
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { ChoiceButtons } from "@/components/ui/ChoiceButtons";
 import { safeGet, safeRemove, safeSet } from "@/lib/storage/safe";
+import { Checklist, CHECKLIST_DRAFT_KEY, type ChecklistMode } from "./Checklist";
 import { Result } from "./Result";
 
-const STORAGE_KEY = "hp.screener";
+// Session-scoped (one tab, cleared when it closes): {"rulesVersion": "...", "answers": {...}}.
+// Answers saved under a different rules version are dropped, since the questions may differ.
+const STORAGE_KEY = "hp.screener.v2";
+// Phase 1's key (bare answers, no version). Removed on sight; never read.
+const LEGACY_STORAGE_KEY = "hp.screener";
 
-function loadStoredAnswers(): Answers {
+const ANSWER_VALUES: ReadonlySet<string> = new Set(["yes", "no", "unsure"]);
+
+function loadStoredAnswers(rulesVersion: string): Answers {
   const raw = safeGet("session", STORAGE_KEY);
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") return parsed as Answers;
+    if (parsed && typeof parsed === "object") {
+      const { rulesVersion: storedVersion, answers } = parsed as { rulesVersion?: unknown; answers?: unknown };
+      if (storedVersion === rulesVersion && answers && typeof answers === "object") {
+        const out: Record<string, Answer> = {};
+        for (const [k, v] of Object.entries(answers)) if (typeof v === "string" && ANSWER_VALUES.has(v)) out[k] = v as Answer;
+        return out;
+      }
+    }
   } catch {
     // Stored value may be malformed; start fresh.
   }
+  safeRemove("session", STORAGE_KEY);
   return {};
 }
 
-function saveStoredAnswers(answers: Answers) {
-  safeSet("session", STORAGE_KEY, JSON.stringify(answers));
-}
-
-function clearStoredAnswers() {
-  safeRemove("session", STORAGE_KEY);
+function saveStoredAnswers(rulesVersion: string, answers: Answers) {
+  safeSet("session", STORAGE_KEY, JSON.stringify({ rulesVersion, answers }));
 }
 
 export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
@@ -45,33 +56,29 @@ export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
   const [restored, setRestored] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // Restore any in-progress answers once, on mount (may jump from question 1 to the saved one).
+  // Restore any in-progress answers once, on mount (may jump from question 1 to the saved screen).
   useEffect(() => {
-    setAnswers(loadStoredAnswers());
+    safeRemove("session", LEGACY_STORAGE_KEY);
+    setAnswers(loadStoredAnswers(ruleSet.version));
     setRestored(true);
-  }, []);
+  }, [ruleSet.version]);
 
   // Persist on every change, but only after the initial restore has happened,
   // so we don't immediately overwrite storage with an empty object.
   useEffect(() => {
     if (!restored) return;
-    saveStoredAnswers(answers);
-  }, [answers, restored]);
+    saveStoredAnswers(ruleSet.version, answers);
+  }, [answers, restored, ruleSet.version]);
 
   const step = nextStep(ruleSet, answers);
-  // TEMPORARY (Task 3 of Phase 2, removed in Task 4): v2's engine groups all exemption rules
-  // into a single `checklist` Step, meant for a real "check any that apply" screen. That real
-  // UI is Task 4's job. Until then, this component walks the checklist's rules one at a time
-  // as individual yes/no/unsure questions (like Phase 1 did for every rule), so the app still
-  // type-checks, builds and answers correctly; it just doesn't show the short checklist UX yet.
-  const checklistCurrent = step.type === "checklist" ? step.rules.find((r) => answers[r.id] === undefined) : null;
   const stepKey =
     step.type === "question"
       ? step.rule.id
       : step.type === "checklist"
-        ? (checklistCurrent?.id ?? "checklist-done")
-        : `result-${step.ruleIds[0] ?? step.unsureAt ?? "subject"}`;
+        ? "checklist"
+        : `result-${step.outcome}-${step.ruleIds.join(",")}-${step.unsureAt ?? ""}`;
 
+  // Focus moves to the new screen's heading, so screen readers announce it.
   useEffect(() => {
     headingRef.current?.focus();
   }, [stepKey]);
@@ -80,26 +87,8 @@ export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
     setAnswers((prev) => ({ ...prev, [id]: answer }));
   };
 
-  // TEMPORARY (Task 3, removed in Task 4). Mirrors the old one-question-at-a-time flow: "yes"
-  // on any exemption finalizes the checklist immediately (checked = just this rule); "unsure"
-  // finalizes with whatever was already checked (none, in this sequential walkthrough); "no"
-  // moves to the next unanswered exemption, and once every exemption has a "no", finalizes as
-  // "none of these".
-  const handleChecklistAnswer = (rule: { id: string }, answer: Answer) => {
-    if (step.type !== "checklist") return;
-    if (answer === "yes") {
-      setAnswers((prev) => ({ ...prev, [rule.id]: answer, ...checklistAnswers(ruleSet, [rule.id], "continue") }));
-      return;
-    }
-    if (answer === "unsure") {
-      setAnswers((prev) => ({ ...prev, [rule.id]: answer, ...checklistAnswers(ruleSet, [], "unsure") }));
-      return;
-    }
-    setAnswers((prev) => {
-      const merged = { ...prev, [rule.id]: answer };
-      const remaining = step.type === "checklist" && step.rules.some((r) => merged[r.id] === undefined);
-      return remaining ? merged : { ...merged, ...checklistAnswers(ruleSet, [], "none") };
-    });
+  const handleChecklist = (checkedIds: string[], mode: ChecklistMode) => {
+    setAnswers((prev) => ({ ...prev, ...checklistAnswers(ruleSet, checkedIds, mode) }));
   };
 
   const handleBack = () => {
@@ -112,70 +101,44 @@ export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
   };
 
   const handleStartOver = () => {
-    clearStoredAnswers();
+    safeRemove("session", STORAGE_KEY);
+    safeRemove("session", CHECKLIST_DRAFT_KEY);
     setAnswers({});
   };
 
   const backButton = (
-    <Button variant="ghost" onClick={handleBack} aria-label={t("back")}>
-      {t("back")}
-    </Button>
+    <div className="print:hidden">
+      <Button variant="ghost" onClick={handleBack}>
+        {t("back")}
+      </Button>
+    </div>
   );
 
   if (step.type === "result") {
-    const outcome = displayOutcome(ruleSet, step);
-    // v2 results can carry several checked exemption ids (e.g. multiple boxes checked on the
-    // real checklist UI); this temporary adapter only ever finalizes with one (see
-    // handleChecklistAnswer), so showing details for the first id covers every reachable case
-    // until Task 4 builds the real multi-item result display. An "unsure" result instead
-    // carries the id (or CHECKLIST) of whatever the user wasn't sure about.
-    const singleRuleId = step.unsureAt !== null && step.unsureAt !== CHECKLIST ? step.unsureAt : step.ruleIds[0];
-    const rule = singleRuleId ? ruleSet.rules.find((r) => r.id === singleRuleId) ?? null : null;
-    // The rule can be attached to this result via a "yes" answer (e.g. an exemption) or via an
-    // "unsure" answer (ask_county is reachable from unsure on any question or the checklist).
-    // Result needs to know which, so it never claims the user said yes when they said unsure.
-    const answer = step.unsureAt !== null ? "unsure" : rule ? answers[rule.id] : undefined;
-
     return (
       <Screen>
         {backButton}
-        <Result
-          outcome={outcome}
-          rule={rule}
-          answer={answer}
-          county={ruleSet.county}
-          generalSourceUrl={ruleSet.generalSourceUrl}
-          lang={locale}
-          headingRef={headingRef}
-          onStartOver={handleStartOver}
-        />
+        <Result step={step} ruleSet={ruleSet} lang={locale} headingRef={headingRef} onStartOver={handleStartOver} />
       </Screen>
     );
   }
 
   if (step.type === "checklist") {
-    // TEMPORARY (Task 3, removed in Task 4): see handleChecklistAnswer above. `checklistCurrent`
-    // is only null for an instant between the last exemption's answer and the merged
-    // finalizing answers landing in state, so there's nothing meaningful to render then.
-    if (!checklistCurrent) return null;
-    const text = ruleText(checklistCurrent, locale);
     return (
       <Screen>
         {backButton}
-        <p className="text-lg text-text-muted">{st("questionOf", { n: step.index + 1, total: step.total })}</p>
-        <h1 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold outline-none">
-          {text.question}
-          {text.questionFallback && (
-            <span className="ml-2 align-middle text-lg font-normal text-text-muted">{st("englishOnly")}</span>
-          )}
-        </h1>
-        {text.hint && (
-          <p className="text-lg text-text-muted">
-            {text.hint}
-            {text.hintFallback && <span className="ml-2">{st("englishOnly")}</span>}
-          </p>
-        )}
-        <ChoiceButtons onSelect={(answer) => handleChecklistAnswer(checklistCurrent, answer)} />
+        <Checklist
+          key={stepKey}
+          rules={step.rules}
+          notes={step.notes}
+          answers={answers}
+          rulesVersion={ruleSet.version}
+          index={step.index}
+          total={step.total}
+          lang={locale}
+          headingRef={headingRef}
+          onSubmit={handleChecklist}
+        />
       </Screen>
     );
   }
