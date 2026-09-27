@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import {
   EntryValidationError,
+  closeAllStoresForTests,
   demoEntries,
   exitDemo,
   getMode,
@@ -50,11 +51,31 @@ const entry = (date: string, type: Entry['type'], hours: number, over: Partial<E
   ...over,
 })
 
+function deleteDatabase(name: string): Promise<void> {
+  return new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase(name)
+    req.onsuccess = () => resolve()
+    req.onerror = () => resolve()
+    req.onblocked = () => resolve()
+  })
+}
+
 beforeEach(() => {
   // fake-indexeddb keeps state per-database-name across tests in the same
   // module unless reset; give every test a clean slate.
   indexedDB = new IDBFactory()
   globalThis.sessionStorage = new MemorySessionStorage()
+})
+
+afterEach(async () => {
+  // store.ts now caches one connection per database name across calls, so a
+  // stale cached connection (bound to a previous test's IDBFactory
+  // instance) must be closed and dropped before the next test's beforeEach
+  // swaps in a fresh IndexedDB — otherwise openStore() in the next test
+  // would silently hand back a connection to the wrong (old) database.
+  await closeAllStoresForTests()
+  await deleteDatabase('hourproof')
+  await deleteDatabase('hourproof-demo')
 })
 
 describe('openStore', () => {
@@ -113,6 +134,27 @@ describe('openStore', () => {
     const stored = await store.get('a')
     expect(stored?.hours).toBe(23)
     expect(await store.list('2026-10')).toHaveLength(1)
+  })
+
+  test('two concurrent same-day puts that together exceed 24h: exactly one succeeds', async () => {
+    const store = await openStore('real')
+    const a = entry('2026-10-05', 'work', 15, { id: 'a' })
+    const b = entry('2026-10-05', 'work', 15, { id: 'b' })
+
+    const results = await Promise.allSettled([store.put(a), store.put(b)])
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled')
+    const rejected = results.filter((r) => r.status === 'rejected')
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(EntryValidationError)
+    expect(((rejected[0] as PromiseRejectedResult).reason as EntryValidationError).codes).toContain(
+      'too_many_hours_that_day',
+    )
+
+    // Exactly one of the two entries actually made it into the store.
+    const stored = await store.list('2026-10')
+    expect(stored).toHaveLength(1)
   })
 
   test('remove, then get is undefined', async () => {
@@ -215,5 +257,22 @@ describe('demoEntries', () => {
 
     // Deterministic: calling it again produces the exact same entries.
     expect(demoEntries('2026-10-02')).toEqual(entries)
+  })
+
+  test('2026-10-01: the job-search-day fallback still lands on a valid, in-range day', () => {
+    const today = '2026-10-01'
+    const entries = demoEntries(today)
+
+    const octoberEntries = entries.filter((e) => monthOf(e.date) === '2026-10')
+    expect(octoberEntries.length).toBeGreaterThan(0)
+    for (const e of octoberEntries) {
+      expect(e.date).toBe('2026-10-01')
+      const others = entries.filter((o) => o.id !== e.id && o.date === e.date)
+      expect(validateEntry(e, others)).toEqual([])
+    }
+    expect(octoberEntries.some((e) => e.type === 'job_search' && !e.inProgram)).toBe(true)
+
+    // day-of-month 1 is within the first three days, so September is seeded too.
+    expect(entries.some((e) => monthOf(e.date) === '2026-09')).toBe(true)
   })
 })

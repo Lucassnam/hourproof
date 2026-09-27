@@ -77,12 +77,13 @@ function buildMonthEntries(month: string, throughDay: number): Entry[] {
     day += 2
   }
 
-  // One job-search entry outside a qualifying program: it doesn't count
-  // toward the 80 hours, but it should show the "outside a program" flag.
+  // One job-search entry outside a qualifying program, placed on the last
+  // day covered so far: it doesn't count toward the 80 hours, but it should
+  // trip the "outside a program" flag. It's safe to double it up with that
+  // day's work/volunteer shift (at most 8h) since 8h + 2h is nowhere near
+  // the 24h/day cap.
   if (throughDay >= 1) {
-    const lastUsedDay = entries.length > 0 ? Number(entries[entries.length - 1].date.slice(8, 10)) : 0
-    const jobSearchDay = day <= throughDay ? day : lastUsedDay < throughDay ? throughDay : Math.max(1, throughDay - 1)
-    addEntry(jobSearchDay, 'job_search', 2, { inProgram: false })
+    addEntry(throughDay, 'job_search', 2, { inProgram: false })
   }
 
   return entries

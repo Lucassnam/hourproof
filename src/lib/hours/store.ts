@@ -54,18 +54,55 @@ function dbNameFor(mode: Mode): string {
   return mode === 'demo' ? 'hourproof-demo' : 'hourproof'
 }
 
-// A fresh connection per openStore() call, rather than a cached singleton:
-// idb/IndexedDB connections are cheap and this keeps mode-switching (and
-// tests that reset IndexedDB between cases) simple and correct, with no
-// stale-connection cache to invalidate.
-function getDb(mode: Mode): Promise<IDBPDatabase<HourProofDB>> {
-  const name = dbNameFor(mode)
+// One connection per database name, cached and reused across openStore()
+// calls (opening a fresh connection every call leaked connections and would
+// have blocked a later version upgrade, since IndexedDB won't run an
+// upgrade transaction while any old connection to the same database is
+// still open).
+const dbConnections = new Map<string, Promise<IDBPDatabase<HourProofDB>>>()
+
+function openConnection(name: string): Promise<IDBPDatabase<HourProofDB>> {
   return openDB<HourProofDB>(name, 1, {
     upgrade(db) {
       const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
       store.createIndex(DATE_INDEX, 'date')
     },
+    // Fires on this connection when another tab/connection is waiting to
+    // open a newer version. Close this one and drop it from the cache so a
+    // future upgrade isn't blocked and the next call reopens fresh.
+    blocking() {
+      const cached = dbConnections.get(name)
+      dbConnections.delete(name)
+      void cached?.then((db) => db.close())
+    },
+    // Fires if the connection is closed unexpectedly (e.g. the browser
+    // reclaiming it). Drop the stale entry so the next call reopens.
+    terminated() {
+      dbConnections.delete(name)
+    },
   })
+}
+
+function getDb(mode: Mode): Promise<IDBPDatabase<HourProofDB>> {
+  const name = dbNameFor(mode)
+  let connection = dbConnections.get(name)
+  if (!connection) {
+    connection = openConnection(name)
+    dbConnections.set(name, connection)
+  }
+  return connection
+}
+
+// Test-only: closes every cached connection and clears the cache, so tests
+// that reset IndexedDB between cases (fake-indexeddb) don't hand out a
+// connection bound to a database instance from a previous test.
+export async function closeAllStoresForTests(): Promise<void> {
+  const cached = Array.from(dbConnections.values())
+  dbConnections.clear()
+  for (const connection of cached) {
+    const db = await connection
+    db.close()
+  }
 }
 
 function sortEntries(entries: Entry[]): Entry[] {
@@ -90,13 +127,27 @@ export async function openStore(mode: Mode): Promise<EntryStore> {
     },
 
     async put(entry) {
-      const sameDay = await db.getAllFromIndex(STORE_NAME, DATE_INDEX, entry.date)
+      // Read the same-day entries, validate, and write in one readwrite
+      // transaction so two concurrent put()s for the same day can't each
+      // read a total that's fine on its own but exceeds 24h together:
+      // IndexedDB serializes readwrite transactions on the same store, so
+      // the second call's read only starts once the first call's write (if
+      // any) has already committed.
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      const sameDay = await tx.store.index(DATE_INDEX).getAll(entry.date)
       const sameDayOthers = sameDay.filter((other) => other.id !== entry.id)
       const errors = validateEntry(entry, sameDayOthers)
       if (errors.length > 0) {
+        tx.abort()
+        try {
+          await tx.done
+        } catch {
+          // tx.done rejects when the transaction is aborted; that's expected here.
+        }
         throw new EntryValidationError(errors)
       }
-      await db.put(STORE_NAME, entry)
+      await tx.store.put(entry)
+      await tx.done
     },
 
     async remove(id) {
