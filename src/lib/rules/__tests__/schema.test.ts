@@ -36,17 +36,17 @@ describe('parseRuleSet', () => {
   test('rejects an exemption rule with outcomeIfYes other than likely_exempt', () =>
     expect(() =>
       parseRuleSet(set([rule({ kind: 'exemption', label_en: 'l', outcomeIfYes: 'not_subject' })])),
-    ).toThrow())
+    ).toThrow(/exemption must have outcomeIfYes likely_exempt/))
   test('rejects a scope rule with outcomeIfYes other than not_subject', () =>
     expect(() =>
       parseRuleSet(set([rule({ kind: 'scope', outcomeIfYes: 'likely_exempt', label_en: undefined })])),
-    ).toThrow())
+    ).toThrow(/scope must have outcomeIfYes not_subject/))
   test('rejects an info rule with outcomeIfYes likely_exempt', () =>
     expect(() =>
       parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'likely_exempt', label_en: undefined })])),
-    ).toThrow())
+    ).toThrow(/info must not have outcomeIfYes likely_exempt/))
   test('rejects reviewedAt set while reviewer is null', () =>
-    expect(() => parseRuleSet(set([rule()], { reviewedAt: '2026-10-10', reviewer: null }))).toThrow())
+    expect(() => parseRuleSet(set([rule()], { reviewedAt: '2026-10-10', reviewer: null }))).toThrow(/reviewer/))
   test('rejects reviewer set while reviewedAt is null', () =>
-    expect(() => parseRuleSet(set([rule()], { reviewedAt: null, reviewer: 'Advocate' }))).toThrow())
+    expect(() => parseRuleSet(set([rule()], { reviewedAt: null, reviewer: 'Advocate' }))).toThrow(/reviewedAt/))
 })

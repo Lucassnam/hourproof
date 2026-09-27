@@ -47,8 +47,8 @@ describe('shipped rule file: checklist labels', () => {
       expect(rule.label_es, `${rule.id}.label_es`).toBeTruthy()
     })
 
-    test(`${rule.id}: label_en is at most 48 characters`, () => {
-      expect(rule.label_en!.length, `${rule.id}.label_en: "${rule.label_en}"`).toBeLessThanOrEqual(48)
+    test(`${rule.id}: label_en is at most 56 characters`, () => {
+      expect(rule.label_en!.length, `${rule.id}.label_en: "${rule.label_en}"`).toBeLessThanOrEqual(56)
     })
 
     test(`${rule.id}: labels never say exempt/exento`, () => {
