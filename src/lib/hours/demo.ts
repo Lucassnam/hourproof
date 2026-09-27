@@ -5,8 +5,9 @@
 // shifts, two volunteering shifts, and one job-search entry outside a
 // qualifying program (so the "outside a program" flag shows).
 //
-// Achievable, not hopeless (Task 7 fix round 1 ruling): the counted total
-// targets clamp(80 − 3.5 × daysLeft, 10, 76), rounded down to a quarter hour.
+// Achievable, not hopeless (Task 7 fix round 1 ruling): the current month's
+// counted total targets clamp(80 − 3.5 × daysLeft, 10, 76), rounded down to a
+// quarter hour.
 // That leaves about 3.5 hours a day to go, so the demo shows 'behind' with a
 // calm, doable hours-per-day number instead of "12.8 hours a day".
 //
@@ -21,6 +22,9 @@ import { addMonths, daysInMonth, monthOf } from '@/lib/dates'
 import type { ActivityType, Entry } from './types'
 
 const PER_DAY_LEFT = 3.5
+// The previous month (seeded on days 1-3) is over, so it's shown as done: a past month
+// under 80 would read as a failed month (fix round 2 ruling).
+export const DEMO_PREVIOUS_MONTH_TOTAL = 82.5
 const MIN_GOAL = 10
 const MAX_GOAL = 76
 
@@ -49,10 +53,9 @@ export function demoGoal(month: string, throughDay: number): number {
   return goal
 }
 
-// Builds one month's worth of demo entries on days 1..throughDay (inclusive).
-function buildMonthEntries(month: string, throughDay: number): Entry[] {
-  const goal = demoGoal(month, throughDay)
-
+// Builds one month's worth of demo entries on days 1..throughDay (inclusive), with a
+// counted total of `goal` hours.
+function buildMonthEntries(month: string, throughDay: number, goal: number): Entry[] {
   const entries: Entry[] = []
   let counted = 0
   let index = 0
@@ -104,17 +107,18 @@ function buildMonthEntries(month: string, throughDay: number): Entry[] {
 
 // Deterministic demo entries for the current month of `today`. If `today`
 // falls within the first three days of the month, the previous month is
-// seeded too (fully, since it's over), so the demo has history to show when
-// the current month has barely started.
+// seeded too (fully, since it's over, and met: DEMO_PREVIOUS_MONTH_TOTAL), so
+// the demo has a finished month to show when the current month has barely
+// started. /log opens on that month on days 1-3.
 export function demoEntries(today: string): Entry[] {
   const month = monthOf(today)
   const dayOfMonth = Number(today.slice(8, 10))
 
-  const currentMonthEntries = buildMonthEntries(month, dayOfMonth)
+  const currentMonthEntries = buildMonthEntries(month, dayOfMonth, demoGoal(month, dayOfMonth))
 
   if (dayOfMonth <= 3) {
     const prevMonth = addMonths(month, -1)
-    const prevMonthEntries = buildMonthEntries(prevMonth, daysInMonth(prevMonth))
+    const prevMonthEntries = buildMonthEntries(prevMonth, daysInMonth(prevMonth), DEMO_PREVIOUS_MONTH_TOTAL)
     return [...prevMonthEntries, ...currentMonthEntries]
   }
 

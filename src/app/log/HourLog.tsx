@@ -12,7 +12,7 @@ import type { Entry, MonthSummary } from "@/lib/hours/types";
 import { EntryForm } from "./EntryForm";
 import { Ring } from "./Ring";
 import { formatDay, formatMonth, formatNumber } from "./format";
-import { notesFor } from "./notes";
+import { mayCountPartly, notesFor } from "./notes";
 
 // The hour log: one route, two views. The list (ring, pace line, notes, entries) is the
 // default; the add/edit form is `?add=1` / `?edit=<id>`. Views switch with the native
@@ -147,12 +147,12 @@ export function HourLog() {
   const monthName = formatMonth(locale, month);
   const met = summary.status === "met";
   const ringLabel = isPast
-    ? t("ring.labelPast", { counted: fmt(summary.counted), month: monthName })
+    ? t("ring.labelPast", { counted: fmt(summary.counted), month: formatMonth(locale, month, { capitalize: false }) })
     : met
       ? t("ring.labelMet", { counted: fmt(summary.counted) })
       : t("ring.label", { counted: fmt(summary.counted) });
 
-  const notes = loaded ? notesFor(summary, isPast, monthEntries.length) : [];
+  const notes = loaded ? notesFor(summary) : [];
   const groups = groupByDate(monthEntries);
 
   return (
@@ -198,7 +198,7 @@ export function HourLog() {
             countedText={fmt(summary.counted)}
             label={loaded ? ringLabel : t("loading")}
             unitText={t("ring.of80")}
-            doneText={t("ring.done")}
+            doneText={isPast ? t("ring.donePast") : t("ring.done")}
             met={met}
             loading={!loaded}
           />
@@ -265,6 +265,9 @@ export function HourLog() {
                               <p className="text-lg tabular-nums">{hoursText(entry.hours)}</p>
                               {entry.place && <p className="truncate text-lg text-text-muted">{entry.place}</p>}
                               {notCounted && <p className="text-lg font-semibold text-pace">{t("notCounted")}</p>}
+                              {mayCountPartly(summary, entry) && (
+                                <p className="text-lg font-semibold text-pace">{t("mayCountPartly")}</p>
+                              )}
                               {entry.type === "workfare" && (
                                 <p className="text-lg font-semibold text-pace">{t("workfareTag")}</p>
                               )}
@@ -293,6 +296,22 @@ export function HourLog() {
         </>
       )}
 
+      {/* Neutral background, collapsed by default: the rule's basics, including the 10-day
+          report, without the log claiming it knows the person is behind or screened. */}
+      <details className="group rounded-2xl border-2 border-border bg-surface">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-lg font-semibold [&::-webkit-details-marker]:hidden">
+          <span>{t("rule.title")}</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 group-open:rotate-180 motion-safe:transition-transform">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </summary>
+        <ul className="flex list-disc flex-col gap-2 pr-4 pb-4 pl-10">
+          <li className="text-lg leading-snug">{t("rule.adds")}</li>
+          <li className="text-lg leading-snug">{t("rule.jobSearch")}</li>
+          <li className="text-lg leading-snug">{t("rule.report")}</li>
+        </ul>
+      </details>
+
       <footer className="mt-2 flex flex-col gap-3 border-t-2 border-border pt-4">
         <p className="flex items-start gap-2 text-lg text-text-muted">
           <LockIcon />
@@ -315,7 +334,7 @@ function paceLine(
   t: (key: string, values?: Record<string, string | number>) => string,
 ): string {
   if (isPast) {
-    if (summary.status === "met") return t("pace.pastMet");
+    if (summary.status === "met") return t("pace.pastMet", { counted: fmt(summary.counted) });
     if (entryCount === 0) return t("pace.pastEmpty");
     return t("pace.pastBehind", { counted: fmt(summary.counted) });
   }

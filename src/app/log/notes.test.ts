@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { summarizeMonth } from '@/lib/hours/summarize'
 import type { Entry } from '@/lib/hours/types'
-import { notesFor } from './notes'
+import { mayCountPartly, notesFor } from './notes'
 
 const entry = (date: string, type: Entry['type'], hours: number, extra: Partial<Entry> = {}): Entry => ({
   id: `${date}-${type}-${hours}`,
@@ -13,48 +13,45 @@ const entry = (date: string, type: Entry['type'], hours: number, extra: Partial<
 })
 
 describe('log notes', () => {
-  test('behind_pace waits until day 7 of the month', () => {
-    const entries = [entry('2026-09-01', 'work', 1)]
-    for (const [today, shown] of [
-      ['2026-09-03', false],
-      ['2026-09-06', false],
-      ['2026-09-07', true],
-      ['2026-09-20', true],
-    ] as const) {
-      const summary = summarizeMonth(entries, '2026-09', today)
-      expect(summary.status, today).toBe('behind')
-      expect(notesFor(summary, false, entries.length).includes('behind_pace'), today).toBe(shown)
-    }
-  })
-
-  test('behind_pace never shows when on track or met', () => {
-    const onTrack = summarizeMonth([entry('2026-09-09', 'work', 15), entry('2026-09-10', 'work', 15)], '2026-09', '2026-09-10')
-    expect(onTrack.status).toBe('on_track')
-    expect(notesFor(onTrack, false, 1)).not.toContain('behind_pace')
-  })
-
-  test('an empty past month shows no behind note; a past month with hours does', () => {
-    const empty = summarizeMonth([], '2026-08', '2026-09-26')
-    expect(notesFor(empty, true, 0)).toEqual([])
-    const some = summarizeMonth([entry('2026-08-10', 'work', 20)], '2026-08', '2026-09-26')
-    expect(notesFor(some, true, 1)).toContain('behind_pace')
+  test('behind_pace is never a note, even when the engine flags it (current or past month)', () => {
+    const current = summarizeMonth([entry('2026-09-01', 'work', 1)], '2026-09', '2026-09-20')
+    expect(current.status).toBe('behind')
+    expect(current.flags).toContain('behind_pace')
+    expect(notesFor(current)).toEqual([])
+    const past = summarizeMonth([entry('2026-08-10', 'work', 20)], '2026-08', '2026-09-26')
+    expect(past.flags).toContain('behind_pace')
+    expect(notesFor(past)).toEqual([])
   })
 
   test('workfare alone gets the workfare_only note; mixed gets workfare_mixed only', () => {
     const only = summarizeMonth([entry('2026-09-02', 'workfare', 10)], '2026-09', '2026-09-26')
-    expect(notesFor(only, false, 1)).toContain('workfare_only')
-    expect(notesFor(only, false, 1)).not.toContain('workfare_mixed')
+    expect(notesFor(only)).toEqual(['workfare_only'])
     const mixed = summarizeMonth(
       [entry('2026-09-02', 'workfare', 10), entry('2026-09-03', 'work', 10)],
       '2026-09',
       '2026-09-26',
     )
-    expect(notesFor(mixed, false, 2)).toContain('workfare_mixed')
-    expect(notesFor(mixed, false, 2)).not.toContain('workfare_only')
+    expect(notesFor(mixed)).toEqual(['workfare_mixed'])
   })
 
   test('job search outside a program gets its note', () => {
     const s = summarizeMonth([entry('2026-09-02', 'job_search', 3, { inProgram: false })], '2026-09', '2026-09-26')
-    expect(notesFor(s, false, 1)).toContain('job_search_outside_program')
+    expect(notesFor(s)).toEqual(['job_search_outside_program'])
+  })
+
+  test('capped in-program job search: the note, and "May count partly" only on in-program job-search rows', () => {
+    const program = entry('2026-09-02', 'program', 4)
+    const inProgram = entry('2026-09-03', 'job_search', 5, { inProgram: true })
+    const outside = entry('2026-09-04', 'job_search', 1, { inProgram: false })
+    const capped = summarizeMonth([program, inProgram, outside], '2026-09', '2026-09-26')
+    expect(capped.flags).toContain('job_search_capped')
+    expect(notesFor(capped)).toContain('job_search_capped')
+    expect(mayCountPartly(capped, inProgram)).toBe(true)
+    expect(mayCountPartly(capped, outside)).toBe(false)
+    expect(mayCountPartly(capped, program)).toBe(false)
+
+    const notCapped = summarizeMonth([entry('2026-09-02', 'program', 10), inProgram], '2026-09', '2026-09-26')
+    expect(notCapped.flags).not.toContain('job_search_capped')
+    expect(mayCountPartly(notCapped, inProgram)).toBe(false)
   })
 })

@@ -21,6 +21,7 @@ describe('hour log formatting', () => {
   test('months and days are formatted from the calendar date, not the device time zone', () => {
     expect(formatMonth('en', '2026-09')).toBe('September 2026')
     expect(formatMonth('es', '2026-09')).toBe('Septiembre de 2026')
+    expect(formatMonth('es', '2026-09', { capitalize: false })).toBe('septiembre de 2026')
     expect(formatDay('en', '2026-10-01')).toBe('Thursday, October 1')
     expect(formatDay('es', '2026-10-01')).toBe('Jueves, 1 de octubre')
   })

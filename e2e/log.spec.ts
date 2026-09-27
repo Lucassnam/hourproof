@@ -54,6 +54,15 @@ test("1. empty state, then 4 hours of volunteering today shows 4 of 80 and the e
   await expect(ring(page)).toHaveAttribute("aria-label", "0 of 80 hours this month");
   await expect(page.getByTestId("pace")).toHaveText("No hours yet this month.");
   await expect(page.getByText("Your hours are saved only on this phone.")).toBeVisible();
+  // "How the rule works" is collapsed; the 10-day report line lives only inside it.
+  const tenDays = page.getByText(
+    "If the work rule applies to you and your hours drop below 20 a week, tell your county within 10 days.",
+  );
+  await expect(tenDays).toBeHidden();
+  await page.getByText("How the rule works", { exact: true }).click();
+  await expect(tenDays).toBeVisible();
+  await expect(page.getByText("Work, volunteering and job programs add up. You need 80 hours a month.")).toBeVisible();
+  await page.getByText("How the rule works", { exact: true }).click();
   await expect(page.getByRole("link", { name: "Check if the rule applies to you" })).toHaveAttribute("href", "/screener");
 
   await addButton(page).click();
@@ -123,6 +132,25 @@ test("3. job search outside a program shows the note and doesn't change the coun
   const row = rows(page).filter({ hasText: "Job search" });
   await expect(row).toContainText("3 hours");
   await expect(row).toContainText("Doesn't count");
+  // One paid hour puts the month behind (1 hour can never project to 80): the pace line says
+  // so factually, but no "tell your county" alert appears among the notes.
+  await addEntry(page, { type: /^Paid work/, hours: "1" });
+  await expect(ring(page)).toHaveAttribute("aria-label", "1 of 80 hours this month");
+  await expect(page.getByTestId("pace")).toHaveText(/^You need \d+ more hours/);
+  await expect(page.getByRole("region", { name: "Good to know" })).not.toContainText("10 days");
+  await expect(page.getByText(/within 10 days/)).toBeHidden();
+});
+
+test("3b. capped job search in a program: the row says it may count partly", async ({ page }) => {
+  await gotoLog(page);
+  await addEntry(page, { type: /^Job training or program/, hours: "4" });
+  await addEntry(page, { type: /^Job search/, hours: "5", inProgram: true });
+  // 4 program hours + job search counted only up to 3.75 (less than the program hours).
+  await expect(ring(page)).toHaveAttribute("aria-label", "7.8 of 80 hours this month");
+  const jobSearch = rows(page).filter({ hasText: "Job search" });
+  await expect(jobSearch).toContainText("May count partly");
+  await expect(jobSearch).not.toContainText("Doesn't count");
+  await expect(rows(page).filter({ hasText: "Job training or program" })).not.toContainText("May count partly");
 });
 
 test("4. 25 hours shows an error on the hours field, focuses it, and saves nothing", async ({ page }) => {

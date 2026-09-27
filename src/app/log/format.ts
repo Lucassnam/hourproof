@@ -36,9 +36,10 @@ function capitalize(text: string, locale: string): string {
 }
 
 // "September 2026" / "Septiembre de 2026"
-export function formatMonth(locale: string, month: string): string {
+// Capitalized for a heading; pass `{ capitalize: false }` for mid-sentence use ("en septiembre").
+export function formatMonth(locale: string, month: string, { capitalize: cap = true } = {}): string {
   const text = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(utcDate(month));
-  return capitalize(text, locale);
+  return cap ? capitalize(text, locale) : text;
 }
 
 // "Saturday, September 26" / "Sábado, 26 de septiembre"

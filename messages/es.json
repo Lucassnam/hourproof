@@ -94,7 +94,8 @@
       "done": "Listo este mes",
       "label": "{counted} de 80 horas este mes",
       "labelMet": "{counted} de 80 horas este mes. Listo este mes.",
-      "labelPast": "{counted} de 80 horas en {month}"
+      "labelPast": "{counted} de 80 horas en {month}",
+      "donePast": "Mes cumplido"
     },
     "pace": {
       "on_track": "Va bien. A este ritmo llegará a {projected} horas.",
@@ -102,7 +103,7 @@
       "behindLastDay": "Necesita {remaining} {remainingN, plural, one {hora} other {horas}} más. Hoy es el último día del mes.",
       "met": "Ya tiene 80 horas este mes. Guarde prueba de cada hora.",
       "not_started": "Todavía no tiene horas este mes.",
-      "pastMet": "Tuvo 80 horas este mes. Guarde prueba de cada hora.",
+      "pastMet": "Este mes ya terminó. Tuvo {counted} horas. Guarde prueba de cada hora.",
       "pastBehind": "Este mes ya terminó. Tuvo {counted} de 80 horas.",
       "pastEmpty": "Este mes ya terminó. No se guardaron horas."
     },
@@ -111,8 +112,7 @@
       "job_search_outside_program": "Buscar trabajo por su cuenta no cuenta. Solo cuenta como parte de un programa de empleo, como CalFresh E&T, WIOA o Trade Act.",
       "job_search_capped": "Algunas de sus horas de búsqueda de trabajo no se cuentan aquí. En un programa de empleo, la búsqueda de trabajo solo cuenta mientras sea menos que sus otras horas del programa. Pregunte en su programa si su caso es diferente.",
       "workfare_mixed": "El trabajo por beneficios (workfare) no se puede sumar a sus otras horas, así que el círculo no lo cuenta. Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita.",
-      "workfare_only": "El círculo no cuenta el trabajo por beneficios (workfare). Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita.",
-      "behind_pace": "Si su trabajo o actividad baja a menos de 20 horas a la semana, la regla dice que debe avisarle a su condado en un plazo de 10 días."
+      "workfare_only": "El círculo no cuenta el trabajo por beneficios (workfare). Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita."
     },
     "addHours": "Agregar horas",
     "listTitle": "Horas guardadas",
@@ -177,7 +177,14 @@
         "in_program_only_for_job_search": "Solo la búsqueda de trabajo se puede marcar como parte de un programa de empleo."
       }
     },
-    "workfareTag": "Lo cuenta su condado"
+    "workfareTag": "Lo cuenta su condado",
+    "mayCountPartly": "Puede contar en parte",
+    "rule": {
+      "title": "Cómo funciona la regla",
+      "adds": "El trabajo, el voluntariado y los programas de empleo se suman. Necesita 80 horas al mes.",
+      "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
+      "report": "Si la regla de trabajo le aplica y sus horas bajan a menos de 20 a la semana, avísele a su condado en un plazo de 10 días."
+    }
   },
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",

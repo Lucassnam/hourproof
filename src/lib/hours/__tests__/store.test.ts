@@ -13,8 +13,8 @@ import {
 } from '../store'
 import { summarizeMonth, validateEntry } from '../summarize'
 import type { Entry } from '../types'
-import { daysInMonth, monthOf } from '@/lib/dates'
-import { demoGoal } from '../demo'
+import { addMonths, daysInMonth, monthOf } from '@/lib/dates'
+import { DEMO_PREVIOUS_MONTH_TOTAL, demoGoal } from '../demo'
 
 // vitest's default environment is Node, which has no sessionStorage. safe.ts
 // reads globalThis.sessionStorage, so give it a minimal in-memory stand-in
@@ -270,6 +270,10 @@ describe('demoEntries', () => {
         expect(summary.counted, today).toBe(demoGoal(month, day))
         expect(summary.status, today).toBe('behind')
         if (summary.neededPerDay !== null) expect(summary.neededPerDay, today).toBeLessThanOrEqual(4.5)
+        if (day <= 3) {
+          const prev = addMonths(month, -1)
+          expect(summarizeMonth(entries, prev, today).status, `${today} previous month`).toBe('met')
+        }
         expect(summary.flags, today).toContain('job_search_outside_program')
       }
     }
@@ -283,6 +287,16 @@ describe('demoEntries', () => {
     const octoberEntries = entries.filter((e) => monthOf(e.date) === '2026-10')
     for (const e of octoberEntries) {
       expect(e.date <= '2026-10-02').toBe(true)
+    }
+
+    // The previous month is over and shown as met (82.5 hours), never a failed month.
+    const september = summarizeMonth(entries, '2026-09', '2026-10-02')
+    expect(september.status).toBe('met')
+    expect(september.counted).toBe(DEMO_PREVIOUS_MONTH_TOTAL)
+    expect(september.counted).toBeGreaterThanOrEqual(80)
+    for (const e of septemberEntries) {
+      const others = entries.filter((o) => o.id !== e.id && o.date === e.date)
+      expect(validateEntry(e, others)).toEqual([])
     }
 
     // Deterministic: calling it again produces the exact same entries.
