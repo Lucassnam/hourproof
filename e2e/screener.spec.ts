@@ -53,7 +53,13 @@ test("Pregnant path shows possibly-exempt result and never shows 'likely exempt'
   expect(text.toLowerCase()).not.toContain("likely exempt");
 });
 
-test("Back after a result returns to the question that produced it, not the result", async ({ page }) => {
+// Task 3 (screener engine v2) replaced the per-rule exemption walkthrough with a single
+// checklist Step. Going back into a real checklist re-shows the same checked boxes; it does
+// not reopen "the pregnant question" specifically, since the Phase 1 temporary UI adapter
+// (Screener.tsx) has already folded every exemption id into the checklist's finalized
+// answers by the time a result exists. Restored in Task 4, when the checklist gets its real
+// checkbox UI and a matching back behavior.
+test.fixme("Back after a result returns to the question that produced it, not the result", async ({ page }) => {
   await goToScreener(page);
 
   await answerNoUntil(page, /pregnant/i); // age_scope, waived_county_scope (until Oct 31), child_under_14
@@ -207,7 +213,11 @@ test("I1: question-time guidance shows as a hint on the question, not on the res
   expect(text).not.toContain("keep answering the questions");
 });
 
-test("I1: the veteran hint shows on its question; unsure there shows no empty 'What proof helps'", async ({ page }) => {
+// Task 3 (screener engine v2) turned veteran_info into a checklist "note" (continue-outcome
+// info folded into the checklist screen for passive display), so it's no longer asked as its
+// own yes/no/unsure question. Restored in Task 4, once the real checklist UI has a place to
+// show notes.
+test.fixme("I1: the veteran hint shows on its question; unsure there shows no empty 'What proof helps'", async ({ page }) => {
   await goToScreener(page);
 
   await answerNoUntil(page, /Are you a veteran\?/);

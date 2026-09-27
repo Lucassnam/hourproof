@@ -1,150 +1,105 @@
 import { describe, expect, test } from 'vitest'
 import { parseRuleSet } from '../schema'
-import { activeRules, californiaDate, displayOutcome, goBack, nextStep, ruleText, type Answers } from '../engine'
+import { CHECKLIST, checklistAnswers, countyScript, displayOutcome, goBack, nextStep, screens, type Answers } from '../engine'
 
-const r = (id: string, kind: string, outcomeIfYes: string, confidence = 'confirmed') => ({
-  id, question_en: `${id}?`, question_es: id === 'age' ? '¿edad?' : null, kind, outcomeIfYes,
-  proofThatHelps_en: 'proof', proofThatHelps_es: id === 'age' ? 'prueba' : null,
-  label_en: kind === 'exemption' ? `${id} label` : undefined,
-  sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence })
-const set = (reviewedAt: string | null = null) => parseRuleSet({
-  version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null, generalSourceUrl: 'https://example.gov/g',
-  county: { name: 'SC', phone: '000', sourceUrl: 'https://example.gov' },
-  rules: [r('age', 'scope', 'not_subject'), r('pregnant', 'exemption', 'likely_exempt'),
-          r('shaky', 'exemption', 'likely_exempt', 'unclear'), r('veteran', 'info', 'continue'),
-          r('meeting', 'info', 'meeting_requirement')] })
+const base = { sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence: 'confirmed' as const }
+const set = (reviewedAt: string | null = null, extra: Record<string, unknown>[] = []) => parseRuleSet({
+  version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null,
+  generalSourceUrl: 'https://example.gov/g', county: { name: 'SC', phone: '(408) 000-0000', sourceUrl: 'https://example.gov' },
+  rules: [
+    { ...base, id: 'age', kind: 'scope', outcomeIfYes: 'not_subject', question_en: 'age?', question_es: '¿edad?' },
+    { ...base, id: 'pregnant', kind: 'exemption', outcomeIfYes: 'likely_exempt', question_en: 'pregnant?', question_es: null, label_en: "I'm pregnant", label_es: 'Estoy embarazada', proofThatHelps_en: 'note' },
+    { ...base, id: 'shaky', kind: 'exemption', outcomeIfYes: 'likely_exempt', question_en: 'shaky?', question_es: null, label_en: 'Shaky reason', label_es: null, confidence: 'unclear' },
+    { ...base, id: 'unfit', kind: 'info', outcomeIfYes: 'ask_county', question_en: 'unfit?', question_es: null },
+    { ...base, id: 'veteran', kind: 'info', outcomeIfYes: 'continue', question_en: 'veteran?', question_es: null, hint_en: 'Veterans are not automatically exempt.' },
+    { ...base, id: 'meeting', kind: 'info', outcomeIfYes: 'meeting_requirement', question_en: '20h?', question_es: null },
+    ...extra,
+  ] })
+const pastChecklist: Answers = { age: 'no', [CHECKLIST]: 'yes', pregnant: 'no', shaky: 'no' }
+
+describe('screens', () => {
+  test('scope questions, one checklist, then info questions; continue-rules become notes', () => {
+    const s = screens(set())
+    expect(s.map((x) => (x.type === 'question' ? x.rule.id : 'checklist'))).toEqual(['age', 'checklist', 'unfit', 'meeting'])
+    const c = s[1]
+    expect(c.type === 'checklist' && c.rules.map((r) => r.id)).toEqual(['pregnant', 'shaky'])
+    expect(c.type === 'checklist' && c.notes.map((r) => r.id)).toEqual(['veteran'])
+  })
+})
 
 describe('nextStep', () => {
-  test('starts at the first rule', () => {
-    const s = nextStep(set(), {})
-    expect(s).toMatchObject({ type: 'question', index: 0, total: 5 })
-  })
+  test('starts at question 1 of 4', () => expect(nextStep(set(), {})).toMatchObject({ type: 'question', index: 0, total: 4 }))
   test('scope yes ends with not_subject', () =>
-    expect(nextStep(set(), { age: 'yes' })).toEqual({ type: 'result', outcome: 'not_subject', ruleId: 'age' }))
-  test('exemption yes ends early', () =>
-    expect(nextStep(set(), { age: 'no', pregnant: 'yes' })).toMatchObject({ outcome: 'likely_exempt', ruleId: 'pregnant' }))
-  test('continue-kind yes moves on', () =>
-    expect(nextStep(set(), { age: 'no', pregnant: 'no', shaky: 'no', veteran: 'yes' }))
-      .toMatchObject({ type: 'question', rule: { id: 'meeting' } }))
-  test('unsure routes to ask_county', () =>
-    expect(nextStep(set(), { age: 'unsure' })).toMatchObject({ outcome: 'ask_county', ruleId: 'age' }))
+    expect(nextStep(set(), { age: 'yes' })).toEqual({ type: 'result', outcome: 'not_subject', ruleIds: ['age'], unsureAt: null }))
+  test('after scope, the checklist', () => expect(nextStep(set(), { age: 'no' })).toMatchObject({ type: 'checklist', index: 1 }))
+  test('checked items give likely_exempt with every checked id', () =>
+    expect(nextStep(set(), { age: 'no', ...checklistAnswers(set(), ['pregnant', 'shaky'], 'continue') })).toMatchObject({ outcome: 'likely_exempt', ruleIds: ['pregnant', 'shaky'] }))
+  test('none of these continues to the next question', () =>
+    expect(nextStep(set(), { age: 'no', ...checklistAnswers(set(), [], 'none') })).toMatchObject({ type: 'question', rule: { id: 'unfit' } }))
+  test('not sure with nothing checked asks the county', () =>
+    expect(nextStep(set(), { age: 'no', ...checklistAnswers(set(), [], 'unsure') })).toMatchObject({ outcome: 'ask_county', unsureAt: CHECKLIST, ruleIds: [] }))
+  test('not sure with something checked still reports the checked items', () =>
+    expect(nextStep(set(), { age: 'no', ...checklistAnswers(set(), ['pregnant'], 'unsure') })).toMatchObject({ outcome: 'likely_exempt', ruleIds: ['pregnant'] }))
+  test('unsure on the 20-hours question asks the county, never meeting_requirement', () =>
+    expect(nextStep(set(), { ...pastChecklist, unfit: 'no', meeting: 'unsure' })).toMatchObject({ outcome: 'ask_county', unsureAt: 'meeting' }))
   test('meeting 20h is its own result, never exempt', () =>
-    expect(nextStep(set(), { age: 'no', pregnant: 'no', shaky: 'no', veteran: 'no', meeting: 'yes' }))
-      .toMatchObject({ outcome: 'meeting_requirement' }))
+    expect(nextStep(set(), { ...pastChecklist, unfit: 'no', meeting: 'yes' })).toMatchObject({ outcome: 'meeting_requirement', ruleIds: ['meeting'] }))
   test('all no means subject to the rule', () =>
-    expect(nextStep(set(), { age: 'no', pregnant: 'no', shaky: 'no', veteran: 'no', meeting: 'no' }))
-      .toEqual({ type: 'result', outcome: 'subject', ruleId: null }))
-  test('stale answers after a terminal answer are ignored', () =>
-    expect(nextStep(set(), { age: 'yes', pregnant: 'yes' })).toMatchObject({ outcome: 'not_subject' }))
+    expect(nextStep(set(), { ...pastChecklist, unfit: 'no', meeting: 'no' })).toEqual({ type: 'result', outcome: 'subject', ruleIds: [], unsureAt: null }))
+})
+
+describe('checklistAnswers', () => {
+  test('continue marks checked yes and the rest no', () =>
+    expect(checklistAnswers(set(), ['pregnant'], 'continue')).toEqual({ [CHECKLIST]: 'yes', pregnant: 'yes', shaky: 'no' }))
+  test('continue with nothing checked is a programming error', () =>
+    expect(() => checklistAnswers(set(), [], 'continue')).toThrow())
+  test('unknown ids are rejected', () => expect(() => checklistAnswers(set(), ['nope'], 'continue')).toThrow())
 })
 
 describe('goBack', () => {
-  test('from a result removes the deciding answer, then the next question shows', () => {
-    const a: Answers = { age: 'no', pregnant: 'yes' }
+  test('from a checklist result back to the checklist, keeping the boxes checked for re-display', () => {
+    const a = { age: 'no', ...checklistAnswers(set(), ['pregnant'], 'continue') } as Answers
     const back = goBack(set(), a)
-    expect(back).toEqual({ age: 'no' })
-    expect(nextStep(set(), { ...back, pregnant: 'no' })).toMatchObject({ type: 'question', rule: { id: 'shaky' } })
+    expect(nextStep(set(), back)).toMatchObject({ type: 'checklist' })
+    expect(back).toMatchObject({ age: 'no', pregnant: 'yes' })
+    expect(back).not.toHaveProperty(CHECKLIST)
   })
-  test('from a question removes the previous answer', () =>
-    expect(goBack(set(), { age: 'no' })).toEqual({}))
-  test('at the first question is a no-op', () => expect(goBack(set(), {})).toEqual({}))
-  test('from the all-no result removes the last answer', () =>
-    expect(goBack(set(), { age: 'no', pregnant: 'no', shaky: 'no', veteran: 'no', meeting: 'no' }))
-      .not.toHaveProperty('meeting'))
+  test('from the question after the checklist back to the checklist', () => {
+    const back = goBack(set(), pastChecklist)
+    expect(nextStep(set(), back)).toMatchObject({ type: 'checklist' })
+  })
+  test('from the checklist back to question 1 clears the checklist answers', () => {
+    expect(goBack(set(), { age: 'no' })).toEqual({})
+  })
+  test('at question 1 is a no-op', () => expect(goBack(set(), {})).toEqual({}))
+  test('from the subject result drops the last question only', () =>
+    expect(goBack(set(), { ...pastChecklist, unfit: 'no', meeting: 'no' })).toEqual({ ...pastChecklist, unfit: 'no' }))
 })
 
 describe('displayOutcome (safety gate)', () => {
-  const exempt = { type: 'result', outcome: 'likely_exempt', ruleId: 'pregnant' } as const
-  test('unreviewed file never says likely exempt', () => expect(displayOutcome(set(null), exempt)).toBe('possibly_exempt'))
-  test('reviewed + confirmed says likely exempt', () => expect(displayOutcome(set('2026-10-10'), exempt)).toBe('likely_exempt'))
-  test('reviewed but unclear rule stays possibly', () =>
-    expect(displayOutcome(set('2026-10-10'), { ...exempt, ruleId: 'shaky' })).toBe('possibly_exempt'))
-  test('other outcomes pass through', () =>
-    expect(displayOutcome(set(), { type: 'result', outcome: 'subject', ruleId: null })).toBe('subject'))
+  const ex = (ids: string[]) => ({ type: 'result', outcome: 'likely_exempt', ruleIds: ids, unsureAt: null }) as const
+  test('unreviewed never says likely exempt', () => expect(displayOutcome(set(null), ex(['pregnant']))).toBe('possibly_exempt'))
+  test('reviewed + a confirmed checked rule says likely exempt', () => expect(displayOutcome(set('2026-10-10'), ex(['pregnant', 'shaky']))).toBe('likely_exempt'))
+  test('reviewed but only unclear rules stays possibly', () => expect(displayOutcome(set('2026-10-10'), ex(['shaky']))).toBe('possibly_exempt'))
+  test('unknown ids stay possibly', () => expect(displayOutcome(set('2026-10-10'), ex(['ghost']))).toBe('possibly_exempt'))
 })
 
-describe('ruleText', () => {
-  test('spanish when present', () =>
-    expect(ruleText(set().rules[0], 'es')).toMatchObject({
-      question: '¿edad?', proof: 'prueba', questionFallback: false, proofFallback: false,
-    }))
-  test('falls back to english and flags it', () =>
-    expect(ruleText(set().rules[1], 'es')).toMatchObject({
-      question: 'pregnant?', questionFallback: true, proofFallback: true,
-    }))
-  test('spanish question, english proof', () => {
-    const rule = {
-      id: 'mixed', question_en: 'mixed?', question_es: '¿mixed?', kind: 'exemption', outcomeIfYes: 'likely_exempt',
-      proofThatHelps_en: 'proof', proofThatHelps_es: null, sourceUrl: 'https://example.gov', sourceQuote: 'q',
-      confidence: 'confirmed',
-    } as const
-    expect(ruleText(rule, 'es')).toMatchObject({ questionFallback: false, proofFallback: true })
-  })
-  test('english never flags', () =>
-    expect(ruleText(set().rules[1], 'en')).toMatchObject({ questionFallback: false, proofFallback: false }))
+describe('countyScript', () => {
+  const r = (over: object) => ({ type: 'result', outcome: 'likely_exempt', ruleIds: ['pregnant'], unsureAt: null, ...over }) as const
+  test('lists checked labels in English', () =>
+    expect(countyScript(set(), r({}), 'en')).toBe("I think I don't have to meet the CalFresh work rule because: I'm pregnant. Can you check my case?"))
+  test('Spanish uses Spanish labels', () => expect(countyScript(set(), r({}), 'es')).toContain('Estoy embarazada'))
+  test('unsure has its own script', () =>
+    expect(countyScript(set(), r({ outcome: 'ask_county', ruleIds: [], unsureAt: 'meeting' }), 'en')).toMatch(/not sure/i))
+  test('not_subject has no script', () => expect(countyScript(set(), r({ outcome: 'not_subject', ruleIds: ['age'] }), 'en')).toBeNull())
 })
 
-// A set with a time-limited rule between age and pregnant, like waived_county_scope in the real file.
-const timed = () => parseRuleSet({
-  version: 't', reviewedAt: null, reviewer: null, generalSourceUrl: 'https://example.gov/g',
-  county: { name: 'SC', phone: '000', sourceUrl: 'https://example.gov' },
-  rules: [r('age', 'scope', 'not_subject'), { ...r('waived', 'scope', 'not_subject'), validUntil: '2026-10-31' },
-          r('pregnant', 'exemption', 'likely_exempt'), r('meeting', 'info', 'meeting_requirement')] })
-// California dates: Oct 31 is still in effect all day long in Los Angeles.
-const OCT31_NOON = new Date('2026-10-31T12:00:00-07:00')
-const OCT31_LATE = new Date('2026-11-01T06:30:00Z') // 23:30 on Oct 31 in California (PDT)
-const NOV1 = new Date('2026-11-01T09:00:00-07:00')
-
-describe('validUntil', () => {
-  test('californiaDate uses the California calendar date', () => {
-    expect(californiaDate(OCT31_LATE)).toBe('2026-10-31')
-    expect(californiaDate(NOV1)).toBe('2026-11-01')
+describe('validUntil still skips expired rules', () => {
+  const expiring = { ...base, id: 'waiver', kind: 'scope', outcomeIfYes: 'not_subject', question_en: 'waiver?', question_es: null, validUntil: '2026-10-31' }
+  test('asked on the last day, skipped the day after', () => {
+    const s = set(null, [])
+    const withWaiver = parseRuleSet({ ...s, rules: [s.rules[0], expiring, ...s.rules.slice(1)] })
+    expect(nextStep(withWaiver, { age: 'no' }, new Date('2026-10-31T20:00:00Z'))).toMatchObject({ type: 'question', rule: { id: 'waiver' } })
+    expect(nextStep(withWaiver, { age: 'no' }, new Date('2026-11-01T20:00:00Z'))).toMatchObject({ type: 'checklist' })
   })
-  test('the rule is asked on or before its date', () => {
-    expect(nextStep(timed(), { age: 'no' }, OCT31_NOON)).toMatchObject({ type: 'question', rule: { id: 'waived' }, index: 1, total: 4 })
-    expect(nextStep(timed(), { age: 'no' }, OCT31_LATE)).toMatchObject({ type: 'question', rule: { id: 'waived' } })
-    expect(nextStep(timed(), { age: 'no', waived: 'yes' }, OCT31_NOON)).toMatchObject({ outcome: 'not_subject', ruleId: 'waived' })
-  })
-  test('the rule is skipped after its date, as if it were not in the list', () => {
-    expect(activeRules(timed(), NOV1).map((x) => x.id)).toEqual(['age', 'pregnant', 'meeting'])
-    expect(nextStep(timed(), { age: 'no' }, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' }, index: 1, total: 3 })
-  })
-  test('a stale answer to a skipped rule is ignored', () =>
-    expect(nextStep(timed(), { age: 'no', waived: 'yes' }, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } }))
-  test('all-no after the date is subject without asking the skipped rule', () =>
-    expect(nextStep(timed(), { age: 'no', pregnant: 'no', meeting: 'no' }, NOV1)).toEqual({ type: 'result', outcome: 'subject', ruleId: null }))
-  test('goBack from the question after a skipped rule returns to the rule before it', () => {
-    const back = goBack(timed(), { age: 'no' }, NOV1)
-    expect(back).toEqual({})
-    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'age' } })
-  })
-  test('goBack from a result across a skipped rule undoes the deciding answer', () => {
-    const back = goBack(timed(), { age: 'no', pregnant: 'yes' }, NOV1)
-    expect(back).toEqual({ age: 'no' })
-    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } })
-  })
-  test('goBack two steps across a skipped rule', () => {
-    const back = goBack(timed(), { age: 'no', pregnant: 'no' }, NOV1)
-    expect(back).toEqual({ age: 'no' })
-    expect(nextStep(timed(), back, NOV1)).toMatchObject({ type: 'question', rule: { id: 'pregnant' } })
-  })
-  test('goBack before the date still steps through the timed rule', () =>
-    expect(goBack(timed(), { age: 'no', waived: 'no' }, OCT31_NOON)).toEqual({ age: 'no' }))
-  test('goBack from the all-no result after the date drops the last active answer', () =>
-    expect(goBack(timed(), { age: 'no', pregnant: 'no', meeting: 'no' }, NOV1)).toEqual({ age: 'no', pregnant: 'no' }))
-})
-
-describe('ruleText hints and absent proof', () => {
-  const base = {
-    id: 'vet', question_en: 'Vet?', question_es: '¿Vet?', kind: 'info', outcomeIfYes: 'continue',
-    sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence: 'confirmed',
-  } as const
-  test('spanish hint when present', () =>
-    expect(ruleText({ ...base, hint_en: 'hint', hint_es: 'pista' }, 'es')).toMatchObject({ hint: 'pista', hintFallback: false }))
-  test('missing spanish hint falls back to english and flags it', () =>
-    expect(ruleText({ ...base, hint_en: 'hint' }, 'es')).toMatchObject({ hint: 'hint', hintFallback: true }))
-  test('no hint and no proof are null, never flagged', () =>
-    expect(ruleText(base, 'es')).toMatchObject({ hint: null, proof: null, hintFallback: false, proofFallback: false }))
-  test('english hint', () =>
-    expect(ruleText({ ...base, hint_en: 'hint', hint_es: 'pista' }, 'en')).toMatchObject({ hint: 'hint', hintFallback: false }))
 })
