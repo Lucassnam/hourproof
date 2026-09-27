@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import {
   EntryValidationError,
   closeAllStoresForTests,
@@ -10,6 +10,7 @@ import {
   openStore,
   setMode,
   startDemo,
+  upgradeSchema,
 } from '../store'
 import { summarizeMonth, validateEntry } from '../summarize'
 import type { Entry } from '../types'
@@ -318,5 +319,51 @@ describe('demoEntries', () => {
 
     // day-of-month 1 is within the first three days, so September is seeded too.
     expect(entries.some((e) => monthOf(e.date) === '2026-09')).toBe(true)
+  })
+})
+
+describe('schema upgrade (M9)', () => {
+  function fakeDb() {
+    const createIndex = vi.fn()
+    const createObjectStore = vi.fn(() => ({ createIndex }))
+    return { db: { createObjectStore } as unknown as Parameters<typeof upgradeSchema>[0], createObjectStore, createIndex }
+  }
+
+  test('a brand-new database (oldVersion 0) gets the entries store and its date index', () => {
+    const { db, createObjectStore, createIndex } = fakeDb()
+    upgradeSchema(db, 0)
+    expect(createObjectStore).toHaveBeenCalledWith('entries', { keyPath: 'id' })
+    expect(createIndex).toHaveBeenCalledWith('date', 'date')
+  })
+
+  test('a database already at version 1 is not given the store again (a future v2 upgrade must not throw)', () => {
+    const { db, createObjectStore } = fakeDb()
+    upgradeSchema(db, 1)
+    expect(createObjectStore).not.toHaveBeenCalled()
+  })
+})
+
+describe('a failed open is not cached (M10)', () => {
+  function openRaw(name: string, version: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(name, version)
+      req.onsuccess = () => {
+        req.result.close()
+        resolve()
+      }
+      req.onerror = () => reject(req.error)
+    })
+  }
+
+  test('after an open fails, the next openStore() tries again instead of returning the same rejection', async () => {
+    // A newer database than this code knows (version 2) makes openDB(name, 1) fail with a VersionError.
+    await openRaw('hourproof', 2)
+    await expect(openStore('real')).rejects.toThrow()
+
+    // The obstacle goes away (here: the database is deleted); the next call must reopen.
+    await deleteDatabase('hourproof')
+    const store = await openStore('real')
+    await store.put(entry('2026-10-02', 'work', 3))
+    expect(await store.list()).toHaveLength(1)
   })
 })

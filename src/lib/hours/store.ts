@@ -61,11 +61,20 @@ function dbNameFor(mode: Mode): string {
 // still open).
 const dbConnections = new Map<string, Promise<IDBPDatabase<HourProofDB>>>()
 
+// Each step runs only for databases older than that step's version, so a later version
+// (e.g. 2 adding an index) can add its own `if (oldVersion < 2)` step without re-creating
+// the entries store, which would throw on every existing phone. Exported for tests.
+export function upgradeSchema(db: Pick<IDBPDatabase<HourProofDB>, 'createObjectStore'>, oldVersion: number): void {
+  if (oldVersion < 1) {
+    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+    store.createIndex(DATE_INDEX, 'date')
+  }
+}
+
 function openConnection(name: string): Promise<IDBPDatabase<HourProofDB>> {
   return openDB<HourProofDB>(name, 1, {
-    upgrade(db) {
-      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-      store.createIndex(DATE_INDEX, 'date')
+    upgrade(db, oldVersion) {
+      upgradeSchema(db, oldVersion)
     },
     // Fires on this connection when another tab/connection is waiting to
     // open a newer version. Close this one and drop it from the cache so a
@@ -85,11 +94,16 @@ function openConnection(name: string): Promise<IDBPDatabase<HourProofDB>> {
 
 function getDb(mode: Mode): Promise<IDBPDatabase<HourProofDB>> {
   const name = dbNameFor(mode)
-  let connection = dbConnections.get(name)
-  if (!connection) {
-    connection = openConnection(name)
-    dbConnections.set(name, connection)
-  }
+  const cached = dbConnections.get(name)
+  if (cached) return cached
+  // A failed open (a blocked or newer database, storage turned off, a private window) must
+  // not stay cached, or every later openStore() would get the same old rejection even
+  // after the problem is gone. Drop it (only if it's still the cached one) and rethrow.
+  const connection: Promise<IDBPDatabase<HourProofDB>> = openConnection(name).catch((error: unknown) => {
+    if (dbConnections.get(name) === connection) dbConnections.delete(name)
+    throw error
+  })
+  dbConnections.set(name, connection)
   return connection
 }
 
