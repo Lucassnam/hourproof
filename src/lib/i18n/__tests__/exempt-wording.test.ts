@@ -20,7 +20,9 @@ const messageTexts = [
   ...flatten(es).map(([k, v]) => [`es.${k}`, v] as const),
 ].filter(([k]) => !/^(en|es)\.result\.likely_exempt\./.test(k))
 
-const RULE_TEXT_FIELDS = ['question_en', 'question_es', 'hint_en', 'hint_es', 'proofThatHelps_en', 'proofThatHelps_es'] as const
+const RULE_TEXT_FIELDS = [
+  'question_en', 'question_es', 'hint_en', 'hint_es', 'proofThatHelps_en', 'proofThatHelps_es', 'label_en', 'label_es',
+] as const
 const ruleTexts = ruleSet.rules.flatMap((r) =>
   RULE_TEXT_FIELDS.flatMap((f) => (r[f] ? [[`${r.id}.${f}`, r[f] as string] as const] : [])),
 )

@@ -3,7 +3,7 @@ import { parseRuleSet } from '../schema'
 
 const rule = (over: Record<string, unknown> = {}) => ({
   id: 'pregnant', question_en: 'Are you pregnant?', question_es: null, kind: 'exemption',
-  outcomeIfYes: 'likely_exempt', proofThatHelps_en: 'A note from a clinic.',
+  outcomeIfYes: 'likely_exempt', proofThatHelps_en: 'A note from a clinic.', label_en: "I'm pregnant",
   sourceUrl: 'https://example.gov/a', sourceQuote: 'quote', confidence: 'confirmed', ...over })
 const set = (rules: unknown[], over: Record<string, unknown> = {}) => ({
   version: 't', reviewedAt: null, reviewer: null, generalSourceUrl: 'https://example.gov/g',
@@ -31,4 +31,22 @@ describe('parseRuleSet', () => {
   test('accepts a date validUntil', () =>
     expect(parseRuleSet(set([rule({ validUntil: '2026-10-31' })])).rules[0].validUntil).toBe('2026-10-31'))
   test('rejects a non-date validUntil', () => expect(() => parseRuleSet(set([rule({ validUntil: 'Oct 31' })]))).toThrow())
+  test('rejects an exemption rule without label_en', () =>
+    expect(() => parseRuleSet(set([rule({ kind: 'exemption', label_en: undefined })]))).toThrow(/label_en/))
+  test('rejects an exemption rule with outcomeIfYes other than likely_exempt', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'exemption', label_en: 'l', outcomeIfYes: 'not_subject' })])),
+    ).toThrow())
+  test('rejects a scope rule with outcomeIfYes other than not_subject', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'scope', outcomeIfYes: 'likely_exempt', label_en: undefined })])),
+    ).toThrow())
+  test('rejects an info rule with outcomeIfYes likely_exempt', () =>
+    expect(() =>
+      parseRuleSet(set([rule({ kind: 'info', outcomeIfYes: 'likely_exempt', label_en: undefined })])),
+    ).toThrow())
+  test('rejects reviewedAt set while reviewer is null', () =>
+    expect(() => parseRuleSet(set([rule()], { reviewedAt: '2026-10-10', reviewer: null }))).toThrow())
+  test('rejects reviewer set while reviewedAt is null', () =>
+    expect(() => parseRuleSet(set([rule()], { reviewedAt: null, reviewer: 'Advocate' }))).toThrow())
 })

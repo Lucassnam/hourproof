@@ -5,6 +5,7 @@ import { activeRules, californiaDate, displayOutcome, goBack, nextStep, ruleText
 const r = (id: string, kind: string, outcomeIfYes: string, confidence = 'confirmed') => ({
   id, question_en: `${id}?`, question_es: id === 'age' ? '¿edad?' : null, kind, outcomeIfYes,
   proofThatHelps_en: 'proof', proofThatHelps_es: id === 'age' ? 'prueba' : null,
+  label_en: kind === 'exemption' ? `${id} label` : undefined,
   sourceUrl: 'https://example.gov', sourceQuote: 'q', confidence })
 const set = (reviewedAt: string | null = null) => parseRuleSet({
   version: 't', reviewedAt, reviewer: reviewedAt ? 'Advocate' : null, generalSourceUrl: 'https://example.gov/g',

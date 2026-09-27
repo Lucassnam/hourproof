@@ -19,6 +19,9 @@ const RuleSchema = z
     // but never an empty string when present.
     proofThatHelps_en: text.optional(),
     proofThatHelps_es: text.nullable().optional(),
+    // Short "Check any that apply" checkbox text. Required (non-empty) when kind === 'exemption'.
+    label_en: text.optional(),
+    label_es: text.nullable().optional(),
     sourceUrl: z.url(),
     sourceQuote: text,
     confidence: z.enum(['confirmed', 'unclear']),
@@ -30,6 +33,16 @@ const RuleSchema = z
       ctx.addIssue({ code: 'custom', message: `${r.id}: hint_es without hint_en` })
     if (r.proofThatHelps_es && !r.proofThatHelps_en)
       ctx.addIssue({ code: 'custom', message: `${r.id}: proofThatHelps_es without proofThatHelps_en` })
+    if (r.label_es && !r.label_en)
+      ctx.addIssue({ code: 'custom', message: `${r.id}: label_es without label_en` })
+    if (r.kind === 'exemption' && !r.label_en)
+      ctx.addIssue({ code: 'custom', message: `${r.id}: label_en is required when kind is exemption` })
+    if (r.kind === 'exemption' && r.outcomeIfYes !== 'likely_exempt')
+      ctx.addIssue({ code: 'custom', message: `${r.id}: kind exemption must have outcomeIfYes likely_exempt` })
+    if (r.kind === 'scope' && r.outcomeIfYes !== 'not_subject')
+      ctx.addIssue({ code: 'custom', message: `${r.id}: kind scope must have outcomeIfYes not_subject` })
+    if (r.kind === 'info' && r.outcomeIfYes === 'likely_exempt')
+      ctx.addIssue({ code: 'custom', message: `${r.id}: kind info must not have outcomeIfYes likely_exempt` })
   })
 
 const RuleSetSchema = z
@@ -48,6 +61,8 @@ const RuleSetSchema = z
       if (seen.has(r.id)) ctx.addIssue({ code: 'custom', message: `duplicate rule id: ${r.id}` })
       seen.add(r.id)
     }
+    if ((s.reviewedAt === null) !== (s.reviewer === null))
+      ctx.addIssue({ code: 'custom', message: 'reviewedAt and reviewer must both be set or both be null' })
   })
 
 export type Rule = z.infer<typeof RuleSchema>

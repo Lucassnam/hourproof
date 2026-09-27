@@ -34,6 +34,30 @@ describe('shipped rule file', () => {
   })
 })
 
+describe('shipped rule file: checklist labels', () => {
+  const exemptionRules = ruleSet.rules.filter((r) => r.kind === 'exemption')
+
+  test('the file actually has exemption rules to check (test is not vacuous)', () => {
+    expect(exemptionRules.length).toBeGreaterThanOrEqual(13)
+  })
+
+  for (const rule of exemptionRules) {
+    test(`${rule.id}: has label_en and label_es`, () => {
+      expect(rule.label_en, `${rule.id}.label_en`).toBeTruthy()
+      expect(rule.label_es, `${rule.id}.label_es`).toBeTruthy()
+    })
+
+    test(`${rule.id}: label_en is at most 48 characters`, () => {
+      expect(rule.label_en!.length, `${rule.id}.label_en: "${rule.label_en}"`).toBeLessThanOrEqual(48)
+    })
+
+    test(`${rule.id}: labels never say exempt/exento`, () => {
+      expect(rule.label_en).not.toMatch(/exempt/i)
+      expect(rule.label_es).not.toMatch(/exent/i)
+    })
+  }
+})
+
 describe('shipped rule file: safety gate (unreviewed file must never claim likely_exempt)', () => {
   const likelyExemptRules = ruleSet.rules.filter((r) => r.outcomeIfYes === 'likely_exempt')
 
