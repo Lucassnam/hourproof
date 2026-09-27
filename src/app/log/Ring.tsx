@@ -44,16 +44,17 @@ export function Ring({
   const fraction = loading ? 0 : Math.max(0, Math.min(1, counted / target));
   const offset = CIRCUMFERENCE * (1 - fraction);
   // Long numbers ("79,8") get a slightly smaller size so they stay inside the hole.
-  const numberSize = countedText.length <= 3 ? "text-6xl" : "text-5xl";
+  const numberSize = (countedText.length <= 3 ? "text-6xl" : "text-5xl") + " max-[260px]:text-4xl";
 
   return (
     <div
       role="img"
       aria-label={label}
-      className="relative mx-auto shrink-0"
-      style={{ width: SIZE, height: SIZE }}
+      // Shrinks with the screen at 200% zoom (180px wide) instead of scrolling sideways.
+      className="relative mx-auto aspect-square shrink-0"
+      style={{ width: SIZE, maxWidth: "100%" }}
     >
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true" className="-rotate-90">
+      <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true" className="-rotate-90">
         <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={TRACK} className="stroke-border" />
         {fraction > 0 && (
           <circle
@@ -70,7 +71,7 @@ export function Ring({
         )}
       </svg>
       {!loading && (
-        <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+        <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center max-[260px]:px-5">
           {met && (
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="stroke-proof" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12.5l4.5 4.5L19 7.5" />

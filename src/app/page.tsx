@@ -20,7 +20,7 @@ export default async function Home() {
     <>
       <NoScriptNotice county={ruleSet.county} />
       <Screen languageSwitch={false} banner={<DemoBanner />}>
-        <form action={setLocale} className="flex gap-3">
+        <form action={setLocale} className="flex flex-wrap gap-3">
           <input type="hidden" name="returnTo" value="/" />
           <button
             type="submit"

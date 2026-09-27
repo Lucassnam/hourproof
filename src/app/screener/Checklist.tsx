@@ -119,12 +119,13 @@ export function Checklist({
                     onChange={(e) => toggle(rule.id, e.target.checked)}
                     className="h-7 w-7 shrink-0 accent-signal"
                   />
-                  <span className="text-lg text-text">
+                  {/* wrap-anywhere: a long word can break at 200% zoom instead of scrolling sideways. */}
+                  <span className="min-w-0 text-lg text-text wrap-anywhere">
                     {text.label}
                     {text.labelFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
                   </span>
                 </label>
-                <details className="group pl-15 pr-4 [&[open]]:pb-3">
+                <details className="group pl-15 pr-4 max-[260px]:pl-4 [&[open]]:pb-3">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 self-start text-lg text-text-muted [&::-webkit-details-marker]:hidden">
                     <span className="underline decoration-1 underline-offset-4">{ct("more")}</span>
                     <svg
@@ -142,7 +143,7 @@ export function Checklist({
                       <path d="m6 9 6 6 6-6" />
                     </svg>
                   </summary>
-                  <div className="flex flex-col gap-2 pt-1">
+                  <div className="flex min-w-0 flex-col gap-2 pt-1 wrap-anywhere">
                     <p className="text-lg text-text">
                       {text.question}
                       {text.questionFallback && <span className="ml-2 text-text-muted">{st("englishOnly")}</span>}
