@@ -8,16 +8,23 @@
 // so e.g. the question count can't differ between them.
 export function californiaDate(now: Date = new Date()): string {
   try {
-    // en-CA formats as YYYY-MM-DD.
-    return new Intl.DateTimeFormat('en-CA', {
+    // Built from the year/month/day parts, not from a locale's formatted string, so it
+    // doesn't depend on any locale printing YYYY-MM-DD.
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/Los_Angeles',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(now)
+    }).formatToParts(now)
+    const part = (type: 'year' | 'month' | 'day') => parts.find((p) => p.type === type)?.value ?? ''
+    const year = part('year').padStart(4, '0')
+    const month = part('month').padStart(2, '0')
+    const day = part('day').padStart(2, '0')
+    if (/^\d{4}$/.test(year) && /^\d{2}$/.test(month) && /^\d{2}$/.test(day)) return `${year}-${month}-${day}`
   } catch {
-    return now.toISOString().slice(0, 10)
+    // Fall through: a browser without time-zone support.
   }
+  return now.toISOString().slice(0, 10)
 }
 
 // 'YYYY-MM-DD' -> 'YYYY-MM'
