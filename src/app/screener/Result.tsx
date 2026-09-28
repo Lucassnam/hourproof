@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CHECKLIST, countyScript, displayOutcome, ruleText } from "@/lib/rules/engine";
 import type { Lang, Step } from "@/lib/rules/engine";
@@ -210,7 +211,30 @@ export function Result({
         </Section>
       )}
 
-      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-4">
+      {(outcome === "subject" || outcome === "meeting_requirement") && (
+        <div className="rounded-2xl bg-proof p-5 text-white">
+          <p className="text-sm font-bold uppercase tracking-[.14em] text-white/80">HourProof</p>
+          <h2 className="mt-2 font-display text-2xl font-bold">
+            {lang === "es" ? "Empiece su plan de 80 horas" : "Start your 80-hour plan"}
+          </h2>
+          <p className="mt-2 text-lg text-white/90">
+            {lang === "es"
+              ? "Combine trabajo, voluntariado, escuela o capacitación y vea con tiempo las horas que faltan."
+              : "Combine work, volunteering, school, or training and catch weekly gaps early."}
+          </p>
+          <Link
+            href="/hours"
+            className="mt-4 flex min-h-14 w-full items-center justify-center rounded-2xl border-2 border-white bg-white px-5 text-center text-lg font-bold text-proof"
+          >
+            {lang === "es" ? "Abrir Mis 80 horas" : "Open My 80 Hours"}
+          </Link>
+          <Link href="/shiftcred" className="mt-2 flex min-h-12 items-center justify-center text-center font-semibold text-white underline underline-offset-4">
+            {lang === "es" ? "Buscar un turno voluntario" : "Find a volunteer shift"}
+          </Link>
+        </div>
+      )}
+
+      <div className="rounded-2xl bg-surface p-4 flex flex-col gap-3">
         <p className="text-lg font-semibold text-text">{county.name}</p>
         <p className="hidden text-lg font-semibold text-text print:block">{county.phone}</p>
         <a

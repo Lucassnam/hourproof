@@ -57,6 +57,10 @@ export default async function Home() {
             {ht("trackHours")}
           </Link>
           <TryDemoButton />
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/hours" className={buttonClasses({ variant: "ghost", fullWidth: true })}>{ht("track")}</Link>
+            <Link href="/proof" className={buttonClasses({ variant: "ghost", fullWidth: true })}>{ht("proof")}</Link>
+          </div>
         </div>
       </Screen>
     </>

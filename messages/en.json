@@ -18,7 +18,9 @@
     "trackHours": "Track my hours",
     "tryDemo": "Try the demo",
     "demoNeedsJs": "The demo needs JavaScript turned on in your browser.",
-    "demoNeedsStorage": "The demo needs your browser to allow site storage."
+    "demoNeedsStorage": "The demo needs your browser to allow site storage.",
+    "track": "Track my hours",
+    "proof": "Organize my proof"
   },
   "screener": {
     "questionOf": "Question {n} of {total}",
