@@ -195,5 +195,43 @@
   "demo": {
     "banner": "Demo — sample data, not yours.",
     "exit": "Exit demo"
+  },
+  "checkin": {
+    "title": "Check in",
+    "eyebrow": "Volunteer check-in",
+    "loadingHeading": "Kitchen check-in",
+    "loading": "Loading…",
+    "unknownHeading": "This QR code isn't active",
+    "unknownBody": "Ask the kitchen for the current poster.",
+    "unavailableHeading": "Kitchen check-in isn't set up yet",
+    "unavailableBody": "You can still add your hours yourself in your hour log.",
+    "tryAgain": "Try again",
+    "nameLabel": "Your first name or nickname",
+    "checkingInAs": "Checking in as {name}",
+    "changeName": "Change name",
+    "privacy": "Your first name and your check-in and check-out times go to {kitchen} so a supervisor can confirm your hours. Nothing else leaves your phone.",
+    "checkIn": "Check in at {kitchen}",
+    "checkingIn": "Checking in…",
+    "checkedInHeading": "You're checked in",
+    "checkedInAt": "Checked in at {time}",
+    "elapsedMinutes": "{m, plural, one {# minute} other {# minutes}} so far",
+    "elapsedHours": "{h, plural, one {# hour} other {# hours}} {m, plural, one {# minute} other {# minutes}} so far",
+    "checkOut": "Check out",
+    "checkingOut": "Checking out…",
+    "checkOutHint": "Tap Check out when you leave.",
+    "elsewhereHeading": "You're checked in somewhere else",
+    "elsewhere": "You're checked in at {other}. Check out there first.",
+    "checkedOutHeading": "You're checked out",
+    "sent": "Sent to {kitchen} for confirmation: {hours} {n, plural, one {hour} other {hours}} ({start}–{end}).",
+    "sentNote": "It shows in your hours now and becomes verified when a supervisor confirms.",
+    "seeHours": "See my hours",
+    "autoClosed": "It looks like you forgot to check out. We closed your shift at 8 hours. The supervisor can fix the time.",
+    "noscript": "Checking in needs JavaScript. Ask the kitchen supervisor to write down your hours.",
+    "errors": {
+      "network": "No signal. Try again when you're connected.",
+      "badName": "Use 1 to 40 letters or numbers for your name.",
+      "notCheckedIn": "You're not checked in here. Your shift may have closed already.",
+      "generic": "Something went wrong. Try again."
+    }
   }
 }

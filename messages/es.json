@@ -195,5 +195,43 @@
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",
     "exit": "Salir de la demostración"
+  },
+  "checkin": {
+    "title": "Registrar entrada",
+    "eyebrow": "Registro de voluntarios",
+    "loadingHeading": "Registro en la cocina",
+    "loading": "Cargando…",
+    "unknownHeading": "Este código QR no está activo",
+    "unknownBody": "Pida en la cocina el cartel actual.",
+    "unavailableHeading": "El registro en la cocina aún no está listo",
+    "unavailableBody": "Puede anotar sus horas usted mismo en su registro de horas.",
+    "tryAgain": "Intentar de nuevo",
+    "nameLabel": "Su nombre o apodo",
+    "checkingInAs": "Se registra como {name}",
+    "changeName": "Cambiar nombre",
+    "privacy": "Su nombre y sus horas de entrada y salida se envían a {kitchen} para que un supervisor confirme sus horas. Nada más sale de su teléfono.",
+    "checkIn": "Registrar entrada en {kitchen}",
+    "checkingIn": "Registrando entrada…",
+    "checkedInHeading": "Su entrada está registrada",
+    "checkedInAt": "Entrada: {time}",
+    "elapsedMinutes": "{m, plural, one {# minuto} other {# minutos}} hasta ahora",
+    "elapsedHours": "{h, plural, one {# hora} other {# horas}} y {m, plural, one {# minuto} other {# minutos}} hasta ahora",
+    "checkOut": "Registrar salida",
+    "checkingOut": "Registrando salida…",
+    "checkOutHint": "Toque Registrar salida cuando se vaya.",
+    "elsewhereHeading": "Tiene una entrada abierta en otro lugar",
+    "elsewhere": "Tiene la entrada registrada en {other}. Registre su salida allí primero.",
+    "checkedOutHeading": "Su salida está registrada",
+    "sent": "Enviado a {kitchen} para confirmar: {hours} {n, plural, one {hora} other {horas}} ({start}–{end}).",
+    "sentNote": "Ya aparece en sus horas y queda verificado cuando un supervisor lo confirme.",
+    "seeHours": "Ver mis horas",
+    "autoClosed": "Parece que olvidó registrar su salida. Cerramos su turno a las 8 horas. El supervisor puede corregir la hora.",
+    "noscript": "Para registrarse se necesita JavaScript. Pida al supervisor de la cocina que anote sus horas.",
+    "errors": {
+      "network": "No hay señal. Intente de nuevo cuando tenga conexión.",
+      "badName": "Use de 1 a 40 letras o números para su nombre.",
+      "notCheckedIn": "No tiene una entrada abierta aquí. Puede que su turno ya se haya cerrado.",
+      "generic": "Algo salió mal. Intente de nuevo."
+    }
   }
 }
