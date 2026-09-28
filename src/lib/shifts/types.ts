@@ -19,7 +19,9 @@ export type Shift = {
 
 export type KitchenShift = Shift & { volunteerName: string }
 
-export type KitchenInfo = { id: string; name: string; slug: string }
+// The SQL's kitchen_by_code no longer returns a slug: the poster is public, and the
+// slug is half of what a PIN guesser needs (Task 2 fix round 1, ruling 1).
+export type KitchenInfo = { id: string; name: string }
 
 export type BackendErrorCode =
   | 'not_found'

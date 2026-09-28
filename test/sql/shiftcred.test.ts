@@ -15,26 +15,15 @@ import {
   type Db,
   type Tx,
 } from "./pglite";
+import { SHIFT_CASES as DURATION_CASES } from "@/lib/shifts/cases";
 
 // PGlite boots a WebAssembly Postgres per test and bcrypt is slow in wasm.
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
-// Mirror of src/lib/shifts/cases.ts, deduped in Task 3.
-const DURATION_CASES: ReadonlyArray<{
-  name: string;
-  checkIn: string;
-  checkOut: string;
-  expectedHours: number;
-}> = [
-  { name: "10:02→13:14 = 3.0", checkIn: "2026-10-05T17:02:00Z", checkOut: "2026-10-05T20:14:00Z", expectedHours: 3.0 },
-  { name: "exactly 3h = 3.0", checkIn: "2026-10-05T16:00:00Z", checkOut: "2026-10-05T19:00:00Z", expectedHours: 3.0 },
-  { name: "14 min = 0", checkIn: "2026-10-05T16:00:00Z", checkOut: "2026-10-05T16:14:00Z", expectedHours: 0 },
-  { name: "7h59 = 7.75", checkIn: "2026-10-05T15:00:00Z", checkOut: "2026-10-05T22:59:00Z", expectedHours: 7.75 },
-  // 23:30 PDT Oct 9 → 01:15 PDT Oct 10 (Nov 1's 01:15 would be ambiguous, it's the fall-back night).
-  { name: "crossing midnight 23:30→01:15 = 1.75", checkIn: "2026-10-10T06:30:00Z", checkOut: "2026-10-10T08:15:00Z", expectedHours: 1.75 },
-  // 00:30 PDT = 07:30Z; 02:30 PST = 10:30Z. The wall clock says 2h, real time is 3h.
-  { name: "DST fall-back night 2026-11-01 00:30→02:30 PT = 3.0 real hours", checkIn: "2026-11-01T07:30:00Z", checkOut: "2026-11-01T10:30:00Z", expectedHours: 3.0 },
-];
+// DURATION_CASES is src/lib/shifts/cases.ts's SHIFT_CASES, imported directly (Task 3
+// dedupe) so the SQL and TS rounding rules are checked against the exact same instants.
+// Postgres parses each case's ISO instant (with its explicit UTC offset) the same way
+// the TS side does; only the elapsed time between checkIn and checkOut matters here.
 
 // create_kitchen generates each kitchen's PIN; the tests remember them by slug.
 const pins = new Map<string, string>();

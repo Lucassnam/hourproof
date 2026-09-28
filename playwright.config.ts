@@ -11,7 +11,13 @@ export default defineConfig({
     viewport: { width: 360, height: 740 },
   },
   webServer: {
-    command: "npm run build && npm run start:e2e",
+    // NEXT_PUBLIC_HOURPROOF_BACKEND must be set before `next build` (it's
+    // inlined into the client bundle at build time, not read at request
+    // time), so it's set on the build step too, not just start:e2e.
+    // HOURPROOF_MOCK_SHIFTS=1 is what makes /api/mock-shifts respond instead
+    // of 404ing, and unlocks its e2e-only reset/x-hp-now extras.
+    command:
+      "HOURPROOF_MOCK_SHIFTS=1 NEXT_PUBLIC_HOURPROOF_BACKEND=mock npm run build && HOURPROOF_MOCK_SHIFTS=1 NEXT_PUBLIC_HOURPROOF_BACKEND=mock npm run start:e2e",
     port: 7051,
     // Always start a fresh server for this run. `reuseExistingServer: true`
     // (the old local-dev default) let e2e silently test whatever was already
