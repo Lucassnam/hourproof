@@ -69,8 +69,16 @@ export function validateEntry(entry: Entry, sameDayOthers: readonly Entry[]): En
   return errors
 }
 
+// A shift-backed entry (source 'shift') whose verification is 'open' or
+// 'rejected' doesn't count toward anything: it's excluded here, before any
+// other math, so it behaves as if it weren't in the list at all (not counted,
+// not in byType, doesn't affect flags or pace).
+function isExcludedShift(entry: Entry): boolean {
+  return entry.source === 'shift' && (entry.verification === 'open' || entry.verification === 'rejected')
+}
+
 export function summarizeMonth(entries: readonly Entry[], month: string, today: string): MonthSummary {
-  const monthEntries = entries.filter((entry) => monthOf(entry.date) === month)
+  const monthEntries = entries.filter((entry) => monthOf(entry.date) === month && !isExcludedShift(entry))
 
   const byType: Record<ActivityType, number> = Object.fromEntries(
     ACTIVITY_TYPES.map((type) => [type, 0]),
@@ -82,10 +90,14 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
 
   let jobSearchInProgramQuarters = 0
   let jobSearchOutsideProgramQuarters = 0
+  let verifiedCountedQuarters = 0
 
   for (const entry of monthEntries) {
     const quarters = toQuarters(entry.hours)
     byTypeQuarters[entry.type] += quarters
+    if (entry.source === 'shift' && entry.verification === 'confirmed') {
+      verifiedCountedQuarters += quarters
+    }
     if (entry.type === 'job_search') {
       if (entry.inProgram) {
         jobSearchInProgramQuarters += quarters
@@ -124,6 +136,7 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
   }
 
   const counted = toHours(countedQuarters)
+  const verifiedCounted = toHours(verifiedCountedQuarters)
   const remaining = toHours(Math.max(0, TARGET_QUARTERS - countedQuarters))
   const jobSearchCountedHours = toHours(jobSearchCountedQuarters)
 
@@ -180,6 +193,7 @@ export function summarizeMonth(entries: readonly Entry[], month: string, today: 
     month,
     target: 80,
     counted,
+    verifiedCounted,
     remaining,
     byType,
     jobSearchCounted: jobSearchCountedHours,
