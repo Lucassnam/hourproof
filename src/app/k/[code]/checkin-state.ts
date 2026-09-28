@@ -67,3 +67,34 @@ export function deriveCheckin(kitchenId: string, shifts: Shift[], seenAutoClosed
 
   return { open, elsewhere, autoClosed };
 }
+
+const RECENT_MS = 12 * 60 * 60 * 1000;
+
+// Check-out timed out (or the answer got lost) but the server did close the shift, so a
+// retry comes back `not_checked_in`. This finds that shift, so the page can show the real
+// "Sent to … for confirmation" summary instead of "You're not checked in here".
+// `openCheckIn` is the check-in time the page was showing; the match compares instants, since
+// Postgres and the mock spell ISO times differently. Only when the page has no check-in time
+// does the latest closed shift at this kitchen that ended within the last 12 hours stand in.
+export function findLandedCheckOut(
+  kitchenId: string,
+  openCheckIn: string | null,
+  shifts: Shift[],
+  nowMs: number,
+): Shift | null {
+  const closedHere = shifts.filter(
+    (s) => s.kitchenId === kitchenId && (s.status === "pending" || s.status === "confirmed") && s.checkOut !== null,
+  );
+  if (openCheckIn) {
+    // A known check-in only ever matches itself: an earlier shift from today is not the
+    // one the volunteer just tried to close, and showing it would misstate their hours.
+    const at = Date.parse(openCheckIn);
+    return closedHere.find((s) => Date.parse(s.checkIn) === at) ?? null;
+  }
+  let latest: Shift | null = null;
+  for (const s of closedHere) {
+    if (nowMs - Date.parse(s.checkOut!) > RECENT_MS) continue;
+    if (!latest || Date.parse(s.checkIn) > Date.parse(latest.checkIn)) latest = s;
+  }
+  return latest;
+}

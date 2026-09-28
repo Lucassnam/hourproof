@@ -6,19 +6,21 @@
 // live surface area in a real deployment.
 import { NextResponse } from 'next/server'
 import {
-  createMockState,
+  createMockRegistry,
   handle,
+  normalizeNamespace,
   reset,
+  stateFor,
   type MockArgs,
   type MockOp,
-  type MockState,
 } from '@/lib/shifts/mock-server'
 import { ShiftBackendError } from '@/lib/shifts/types'
 
-// One in-memory state per server process, mirroring one Supabase project.
-// Module-level so it survives across requests within the same server
-// instance (and is what `reset` clears between e2e tests).
-let state: MockState = createMockState()
+// One in-memory state per namespace (the `x-hp-mock-ns` header; 'default' without it),
+// each mirroring one Supabase project. Module-level so it survives across requests within
+// the same server instance. e2e gives every test its own namespace, so parallel tests
+// can't reset or see each other's data (Task 4 fix round 1, ruling 3).
+const registry = createMockRegistry()
 
 export async function POST(request: Request) {
   if (process.env.HOURPROOF_MOCK_SHIFTS !== '1') {
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'network' }, { status: 400 })
   }
+
+  const state = stateFor(registry, normalizeNamespace(request.headers.get('x-hp-mock-ns')))
 
   if (body.op === 'reset') {
     const opts = (body.args ?? {}) as { seedSecondKitchen?: boolean }

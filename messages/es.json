@@ -210,6 +210,7 @@
     "checkingInAs": "Se registra como {name}",
     "changeName": "Cambiar nombre",
     "privacy": "Su nombre y sus horas de entrada y salida se envían a {kitchen} para que un supervisor confirme sus horas. Nada más sale de su teléfono.",
+    "consent": "Al tocar Registrar entrada, usted acepta.",
     "checkIn": "Registrar entrada en {kitchen}",
     "checkingIn": "Registrando entrada…",
     "checkedInHeading": "Su entrada está registrada",

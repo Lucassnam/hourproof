@@ -26,5 +26,8 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 180_000,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // The preset is spread first and the phone viewport set after it: the Desktop Chrome
+  // preset carries its own 1280x720 viewport, which used to override the 360px one above
+  // for every spec (Task 4 fix round 1, ruling 4).
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 360, height: 740 } } }],
 });

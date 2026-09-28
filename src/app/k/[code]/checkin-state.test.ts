@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'vitest'
 import type { Shift } from '@/lib/shifts/types'
-import { deriveCheckin, elapsedParts, formatClock, formatShiftHours, lookbackDate, sentHours } from './checkin-state'
+import {
+  deriveCheckin,
+  elapsedParts,
+  findLandedCheckOut,
+  formatClock,
+  formatShiftHours,
+  lookbackDate,
+  sentHours,
+} from './checkin-state'
 
 function shift(over: Partial<Shift>): Shift {
   return {
@@ -71,6 +79,32 @@ describe('check-in page helpers', () => {
       const later = shift({ id: 's2', checkIn: '2026-09-28T02:00:00Z', checkOut: '2026-09-28T03:00:00Z', status: 'pending' })
       expect(deriveCheckin('k1', [closed, later], null).autoClosed).toBeNull()
       expect(deriveCheckin('k1', [{ ...closed, status: 'confirmed' }], null).autoClosed).toBeNull()
+    })
+  })
+
+  describe('findLandedCheckOut (a check-out that landed after the page gave up on it)', () => {
+    const NOW = Date.parse('2026-09-27T21:00:00Z')
+    const mine = shift({ checkIn: '2026-09-27T17:00:00.000Z', checkOut: '2026-09-27T20:00:00Z', status: 'pending' })
+
+    test('finds the shift this page checked in, by its check-in instant, however it is spelled', () => {
+      const other = shift({ id: 's9', checkIn: '2026-09-27T16:00:00Z', checkOut: '2026-09-27T16:30:00Z', status: 'pending' })
+      expect(findLandedCheckOut('k1', '2026-09-27T17:00:00+00:00', [other, mine], NOW)).toBe(mine)
+      // A known check-in that isn't there never falls back to some other shift.
+      expect(findLandedCheckOut('k1', '2026-09-27T18:00:00Z', [other, mine], NOW)).toBeNull()
+    })
+
+    test('without a known check-in, takes the latest closed shift here from the last 12 hours', () => {
+      const older = shift({ id: 's0', checkIn: '2026-09-27T12:00:00Z', checkOut: '2026-09-27T13:00:00Z', status: 'confirmed' })
+      expect(findLandedCheckOut('k1', null, [mine, older], NOW)).toBe(mine)
+      expect(findLandedCheckOut('k1', null, [older], NOW)).toBe(older)
+      const stale = shift({ id: 's0', checkIn: '2026-09-27T05:00:00Z', checkOut: '2026-09-27T08:00:00Z', status: 'pending' })
+      expect(findLandedCheckOut('k1', null, [stale], NOW)).toBeNull()
+    })
+
+    test('ignores other kitchens, open shifts and rejected shifts', () => {
+      expect(findLandedCheckOut('k2', mine.checkIn, [mine], NOW)).toBeNull()
+      expect(findLandedCheckOut('k1', mine.checkIn, [{ ...mine, status: 'open', checkOut: null }], NOW)).toBeNull()
+      expect(findLandedCheckOut('k1', mine.checkIn, [{ ...mine, status: 'rejected' }], NOW)).toBeNull()
     })
   })
 })

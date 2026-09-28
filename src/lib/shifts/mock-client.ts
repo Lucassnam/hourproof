@@ -43,12 +43,24 @@ function volunteerId(): string {
   return id
 }
 
+// Task 4 fix round 1, ruling 3: the mock route keeps one world per namespace. e2e puts a
+// per-test value in localStorage (page.addInitScript) so parallel tests stay apart;
+// everyone else shares 'default'. The route ignores anything it doesn't recognize.
+const NAMESPACE_KEY = 'hp.shifts.mockNs'
+function mockNamespace(): string {
+  return safeGet('local', NAMESPACE_KEY) || 'default'
+}
+
 async function call<Op extends MockOp>(op: Op, args: MockArgs[Op]): Promise<MockResult[Op]> {
   let res: Response
   try {
     res = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-hp-volunteer': volunteerId() },
+      headers: {
+        'content-type': 'application/json',
+        'x-hp-volunteer': volunteerId(),
+        'x-hp-mock-ns': mockNamespace(),
+      },
       body: JSON.stringify({ op, args }),
     })
   } catch {
@@ -74,7 +86,7 @@ async function call<Op extends MockOp>(op: Op, args: MockArgs[Op]): Promise<Mock
 export async function resetMockShifts(opts: { seedSecondKitchen?: boolean } = {}): Promise<void> {
   const res = await fetch(ENDPOINT, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-hp-mock-ns': mockNamespace() },
     body: JSON.stringify({ op: 'reset', args: opts }),
   })
   if (!res.ok) throw new ShiftBackendError('network')

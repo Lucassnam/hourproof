@@ -210,6 +210,7 @@
     "checkingInAs": "Checking in as {name}",
     "changeName": "Change name",
     "privacy": "Your first name and your check-in and check-out times go to {kitchen} so a supervisor can confirm your hours. Nothing else leaves your phone.",
+    "consent": "Tapping Check in means you agree.",
     "checkIn": "Check in at {kitchen}",
     "checkingIn": "Checking in…",
     "checkedInHeading": "You're checked in",

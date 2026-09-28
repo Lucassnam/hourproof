@@ -5,14 +5,11 @@ import { test, expect, type Page, type APIRequestContext } from "@playwright/tes
 // route with HOURPROOF_MOCK_SHIFTS=1). Each Playwright context is a fresh "phone": its own
 // localStorage, so its own mock volunteer id.
 //
-// The mock's state is one per server process, so this file resets it before every test and
-// runs its tests in order in one worker ('default' mode), never in parallel with each other.
-// The reset always seeds the second kitchen, so a reset from here can't pull that kitchen
-// out from under another test that relies on it.
-
-test.describe.configure({ mode: "default" });
-// A phone. (The project's Desktop Chrome device preset would otherwise make it 1280 wide.)
-test.use({ viewport: { width: 360, height: 740 } });
+// The mock keeps one world per namespace (the x-hp-mock-ns header). Every test gets its own
+// namespace, which the page's mock client reads from localStorage (set by an init script
+// before any page code runs) and the test's own API calls send directly. So tests here run
+// in parallel, with each other and with other mock-backed specs, and each reset (always
+// seeding the second kitchen) touches only its own world.
 
 const KITCHEN = "Community Kitchen (test)";
 const CODE = "TESTCODE-0000000000000";
@@ -21,12 +18,27 @@ const CODE_2 = "TESTCODE2-00000000000";
 
 const HOUR = 60 * 60 * 1000;
 
+// Set per test in beforeEach. Tests in one worker run one at a time, so a module variable is
+// enough; different workers are different processes.
+let ns = "default";
+
 async function resetMock(request: APIRequestContext) {
-  const res = await request.post("/api/mock-shifts", { data: { op: "reset", args: { seedSecondKitchen: true } } });
+  const res = await request.post("/api/mock-shifts", {
+    data: { op: "reset", args: { seedSecondKitchen: true } },
+    headers: { "x-hp-mock-ns": ns },
+  });
   expect(res.ok()).toBe(true);
 }
 
-test.beforeEach(async ({ request }) => {
+test.beforeEach(async ({ page, request }, testInfo) => {
+  ns = `e2e-${testInfo.testId}-${testInfo.repeatEachIndex}-${testInfo.retry}`;
+  await page.addInitScript((value) => {
+    try {
+      localStorage.setItem("hp.shifts.mockNs", value);
+    } catch {
+      // about:blank has no storage; the real page load runs this again.
+    }
+  }, ns);
   await resetMock(request);
 });
 
@@ -60,19 +72,22 @@ async function myShifts(page: Page) {
   expect(id).toBeTruthy();
   const res = await page.request.post("/api/mock-shifts", {
     data: { op: "myShifts", args: { sinceDate: "2000-01-01" } },
-    headers: { "x-hp-volunteer": id! },
+    headers: { "x-hp-volunteer": id!, "x-hp-mock-ns": ns },
   });
   return ((await res.json()) as { result: { id: string; status: string; checkIn: string; autoClosed: boolean }[] }).result;
 }
 
 test("1. first check-in: the privacy line shows first, Check in needs a name, and the name is remembered", async ({ page }) => {
+  // Every spec runs on a phone-width screen (playwright.config.ts; this file doesn't set it).
+  expect(page.viewportSize()).toEqual({ width: 360, height: 740 });
   await page.clock.install();
   await gotoKitchen(page);
   await expect(page.getByRole("heading", { level: 1, name: KITCHEN })).toBeVisible();
   await expect(page.getByTestId("privacy")).toHaveText(
     `Your first name and your check-in and check-out times go to ${KITCHEN} so a supervisor can confirm your hours. Nothing else leaves your phone.`,
   );
-  // The privacy line sits above the button, so it's read before the first tap.
+  await expect(page.getByTestId("consent")).toHaveText("Tapping Check in means you agree.");
+  // The privacy line and the consent sentence sit above the button, so they're read first.
   const privacyBox = await page.getByTestId("privacy").boundingBox();
   const buttonBox = await checkInButton(page).boundingBox();
   expect(privacyBox!.y).toBeLessThan(buttonBox!.y);
@@ -92,6 +107,10 @@ test("1. first check-in: the privacy line shows first, Check in needs a name, an
   await expect(page.getByTestId("elapsed")).toHaveText("0 minutes so far");
   await expect(page.getByRole("button", { name: "Check out" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("hp.checkin.name"))).toBe("Maria");
+  // The agreement is kept on this phone only, as the time it was given.
+  const agreedAt = await page.evaluate(() => localStorage.getItem("hp.checkin.privacyShown"));
+  expect(Number.isNaN(Date.parse(agreedAt ?? ""))).toBe(false);
+  await expect(page.getByTestId("consent")).toHaveCount(0);
 
   // The live counter moves every 30 seconds.
   await page.clock.fastForward("30:00");
@@ -170,6 +189,41 @@ async function seeHoursWorks(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "Your hours" })).toBeVisible();
 }
 
+test("3b. a check-out that landed late (weak signal, then a retry) still shows its real summary", async ({ page }) => {
+  await firstCheckIn(page);
+  const [shift] = await myShifts(page);
+  const id = await page.evaluate(() => localStorage.getItem("hp.shifts.mockVolunteerId"));
+  // The page's first check-out reached the server at +2 h 40 min, but the answer never got
+  // back. Simulated by closing the shift straight through the mock.
+  const res = await page.request.post("/api/mock-shifts", {
+    data: { op: "checkOut", args: { code: CODE } },
+    headers: { "x-hp-volunteer": id!, "x-hp-mock-ns": ns, "x-hp-now": new Date(Date.parse(shift.checkIn) + 2 * HOUR + 40 * 60 * 1000).toISOString() },
+  });
+  expect(res.ok()).toBe(true);
+
+  // The volunteer taps Check out again: the server says nothing is open, and the page finds
+  // the shift that did close instead of saying "You're not checked in here".
+  await page.getByRole("button", { name: "Check out" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "You're checked out" })).toBeVisible();
+  await expect(page.getByTestId("sent")).toHaveText(
+    new RegExp(`^Sent to ${KITCHEN.replace(/[()]/g, "\\$&")} for confirmation: 2\\.5 hours \\(\\d{1,2}:\\d{2}\\s[AP]M–\\d{1,2}:\\d{2}\\s[AP]M\\)\\.$`),
+  );
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("3c. check-out when nothing closed here says so plainly", async ({ page }) => {
+  await firstCheckIn(page);
+  const id = await page.evaluate(() => localStorage.getItem("hp.shifts.mockVolunteerId"));
+  // The server has no record of any shift for this phone (this test wipes its mock world).
+  await resetMock(page.request);
+  expect(id).toBeTruthy();
+  await page.getByRole("button", { name: "Check out" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "You're not checked in here. Your shift may have closed already.",
+  );
+  await expect(page.getByRole("heading", { level: 1, name: KITCHEN })).toBeVisible();
+});
+
 test("4. checked in at another kitchen: no second open shift, and the page says where", async ({ page }) => {
   await firstCheckIn(page, "Ana", CODE_2, KITCHEN_2);
 
@@ -226,6 +280,7 @@ test("7. Spanish: every screen is in Spanish, with 24-hour California times", as
   await expect(page.getByTestId("privacy")).toHaveText(
     `Su nombre y sus horas de entrada y salida se envían a ${KITCHEN} para que un supervisor confirme sus horas. Nada más sale de su teléfono.`,
   );
+  await expect(page.getByTestId("consent")).toHaveText("Al tocar Registrar entrada, usted acepta.");
   const button = page.getByRole("button", { name: `Registrar entrada en ${KITCHEN}` });
   await expect(button).toBeDisabled();
   await page.getByLabel("Su nombre o apodo").fill("Lupe");

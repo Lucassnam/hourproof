@@ -154,6 +154,40 @@ export function reset(state: MockState, opts: ResetOptions = {}): MockState {
   return state
 }
 
+// Mock-only per-test namespaces (Task 4 fix round 1, ruling 3). The HTTP route keeps one
+// MockState per `x-hp-mock-ns` header value, so e2e tests running in parallel each get
+// their own kitchens, shifts and PIN lockouts, and `reset` only clears the caller's own.
+// Requests without the header (the app outside e2e) all share DEFAULT_NAMESPACE.
+export const DEFAULT_NAMESPACE = 'default'
+// A dev server can live for days; this caps how many test worlds it remembers.
+export const MAX_NAMESPACES = 200
+const NAMESPACE_PATTERN = /^[A-Za-z0-9_.-]{1,80}$/
+
+export type MockRegistry = Map<string, MockState>
+
+export function createMockRegistry(): MockRegistry {
+  return new Map()
+}
+
+export function normalizeNamespace(raw: string | null | undefined): string {
+  return raw && NAMESPACE_PATTERN.test(raw) && raw !== '.' && raw !== '..' ? raw : DEFAULT_NAMESPACE
+}
+
+// The state for `ns`, created (freshly seeded) on first use. When the registry is full,
+// the oldest namespace other than the default one is dropped (Map keeps insertion order).
+export function stateFor(registry: MockRegistry, ns: string): MockState {
+  const existing = registry.get(ns)
+  if (existing) return existing
+  while (registry.size >= MAX_NAMESPACES) {
+    const oldest = [...registry.keys()].find((k) => k !== DEFAULT_NAMESPACE)
+    if (oldest === undefined) break
+    registry.delete(oldest)
+  }
+  const state = createMockState()
+  registry.set(ns, state)
+  return state
+}
+
 function kitchenNameOf(state: MockState, kitchenId: string): string {
   return state.kitchens.find((k) => k.id === kitchenId)?.name ?? ''
 }

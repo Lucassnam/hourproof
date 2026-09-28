@@ -10,6 +10,7 @@ import { ShiftBackendError, type BackendErrorCode, type KitchenInfo, type Shift,
 import {
   deriveCheckin,
   elapsedParts,
+  findLandedCheckOut,
   formatClock,
   formatShiftHours,
   lookbackDate,
@@ -23,7 +24,9 @@ import {
 // privacy line in front of them), so a first visit sends nothing but the poster's code.
 
 const NAME_KEY = "hp.checkin.name";
-// Set after the first successful check-in on this device: the privacy line was shown.
+// Set on the first check-in tap that the server accepted on this device: the volunteer saw
+// the privacy line and "Tapping Check in means you agree." and tapped. Holds the time of that
+// agreement (ISO), kept only on this phone. Older builds stored "1"; any value counts.
 const ACK_KEY = "hp.checkin.privacyShown";
 // The id of the auto-closed shift whose notice this device already moved past.
 const AUTO_CLOSED_SEEN_KEY = "hp.checkin.autoClosedSeen";
@@ -116,7 +119,7 @@ export function CheckIn({ code }: { code: string }) {
   const load = useCallback(
     async (showLoading = true) => {
       if (showLoading) setView({ kind: "loading" });
-      const hasCheckedInHere = safeGet("local", ACK_KEY) === "1";
+      const hasCheckedInHere = Boolean(safeGet("local", ACK_KEY));
       setFirstTime(!hasCheckedInHere);
       try {
         const backend = await withTimeout(loadBackend());
@@ -193,7 +196,7 @@ export function CheckIn({ code }: { code: string }) {
       const backend = await withTimeout(loadBackend());
       const shift = await withTimeout(backend.checkIn(code, name));
       safeSet("local", NAME_KEY, name);
-      safeSet("local", ACK_KEY, "1");
+      if (!safeGet("local", ACK_KEY)) safeSet("local", ACK_KEY, new Date().toISOString());
       if (view.autoClosed) safeSet("local", AUTO_CLOSED_SEEN_KEY, view.autoClosed.id);
       setSavedName(name);
       setNameDraft(name);
@@ -206,7 +209,7 @@ export function CheckIn({ code }: { code: string }) {
       if (c === "already_open_elsewhere") {
         // The volunteer has checked in before (maybe on this device before its storage was
         // cleared); the refresh finds the open shift and shows where.
-        safeSet("local", ACK_KEY, "1");
+        if (!safeGet("local", ACK_KEY)) safeSet("local", ACK_KEY, new Date().toISOString());
         await load(false);
       } else if (c === "unavailable") setView({ kind: "unavailable" });
       else if (c === "not_found") setView({ kind: "unknown" });
@@ -227,13 +230,29 @@ export function CheckIn({ code }: { code: string }) {
     } catch (err) {
       const c = errorCode(err);
       if (c === "not_checked_in") {
-        // Closed already (auto-closed, or checked out on another tab): show what's true now.
-        await load(false);
-        setError(errorText(c));
+        // Nothing open here any more. Most often this is our own check-out landing after the
+        // page gave up on it (weak signal, then a retry): find that shift and show its real
+        // summary. Otherwise (auto-closed, closed on another tab) show what's true now.
+        const landed = await findLanded(view.kitchen.id, view.open?.checkIn ?? null);
+        if (landed) setView({ kind: "out", kitchen: view.kitchen, shift: landed });
+        else {
+          await load(false);
+          setError(errorText(c));
+        }
       } else if (c === "unavailable") setView({ kind: "unavailable" });
       else setError(errorText(c));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const findLanded = async (kitchenId: string, openCheckIn: string | null): Promise<Shift | null> => {
+    try {
+      const backend = await withTimeout(loadBackend());
+      const shifts = await withTimeout(backend.myShifts(lookbackDate()));
+      return findLandedCheckOut(kitchenId, openCheckIn, shifts, Date.now());
+    } catch {
+      return null;
     }
   };
 
@@ -404,9 +423,16 @@ export function CheckIn({ code }: { code: string }) {
                 </button>
               </div>
             )}
-            {/* Before the first check-in on this device, the privacy line sits right above
-                the button, so tapping it is agreeing to what the line says. */}
-            {firstTime && privacy}
+            {/* Before the first check-in on this device, the privacy line and the consent
+                sentence sit right above the button: tapping it is the agreement. */}
+            {firstTime && (
+              <div className="flex flex-col gap-2">
+                {privacy}
+                <p className="text-lg leading-snug font-semibold" data-testid="consent">
+                  {t("consent")}
+                </p>
+              </div>
+            )}
             {errorBox}
             <button
               type="submit"
