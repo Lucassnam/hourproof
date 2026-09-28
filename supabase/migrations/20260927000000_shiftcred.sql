@@ -14,7 +14,10 @@
 -- Shift hours (computed by the client): floor(extract(epoch from (check_out - check_in)) / 900) * 0.25
 
 -- On Supabase pgcrypto already lives in schema `extensions`, so this is a no-op there.
-create extension if not exists pgcrypto;
+-- Every pgcrypto call below is schema-qualified (extensions.crypt, extensions.gen_salt,
+-- extensions.gen_random_bytes), so it resolves the same way on Supabase and in the tests.
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 -- ---------------------------------------------------------------------------
 -- Tables
@@ -31,13 +34,16 @@ create table public.kitchens (
   created_at timestamptz not null default now()
 );
 create table public.volunteers (
-  user_id uuid primary key references auth.users(id) on delete cascade,
+  -- restrict, not cascade: a volunteer's name stands next to verified hours on the
+  -- kitchen dashboard, so cleaning up anonymous auth users must skip anyone with shifts.
+  user_id uuid primary key references auth.users(id) on delete restrict,
   display_name text not null check (char_length(btrim(display_name)) between 1 and 40),
   created_at timestamptz not null default now()
 );
 create table public.shifts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- restrict: verified hours must never vanish when an anonymous user is cleaned up.
+  user_id uuid not null references auth.users(id) on delete restrict,
   kitchen_id uuid not null references public.kitchens(id),
   check_in timestamptz not null default now(),
   check_out timestamptz,
@@ -56,13 +62,15 @@ create table public.pin_attempts (
   at timestamptz not null default now(),
   ok boolean not null
 );
+create index pin_attempts_kitchen_at on public.pin_attempts(kitchen_id, at);
 
 alter table public.kitchens enable row level security;
 alter table public.volunteers enable row level security;
 alter table public.shifts enable row level security;
 alter table public.pin_attempts enable row level security;
-create policy shifts_select_own on public.shifts for select to authenticated using (user_id = auth.uid());
-create policy volunteers_select_own on public.volunteers for select to authenticated using (user_id = auth.uid());
+-- (select auth.uid()) is evaluated once per query instead of once per row.
+create policy shifts_select_own on public.shifts for select to authenticated using (user_id = (select auth.uid()));
+create policy volunteers_select_own on public.volunteers for select to authenticated using (user_id = (select auth.uid()));
 -- kitchens and pin_attempts: no policies (RPC only)
 
 -- Defense in depth. Supabase's default privileges grant ALL on every new table and
@@ -83,7 +91,30 @@ create function public._new_code() returns text
 language sql volatile
 set search_path = public, extensions, pg_temp
 as $$
-  select rtrim(translate(encode(gen_random_bytes(16), 'base64'), '+/', '-_'), '=')
+  select rtrim(translate(encode(extensions.gen_random_bytes(16), 'base64'), '+/', '-_'), '=')
+$$;
+
+-- A new kitchen PIN, uniform over 000000-999999 (leading zeros kept).
+-- 4 random bytes give n in [0, 2^32). 4,294,000,000 is the largest multiple of
+-- 1,000,000 not above 2^32, so draws at or above it are rejected and redrawn
+-- (about 0.02% of draws); what remains maps onto every PIN equally often, with no
+-- modulo bias.
+create function public._new_pin() returns text
+language plpgsql volatile
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_b bytea;
+  v_n bigint;
+begin
+  loop
+    v_b := extensions.gen_random_bytes(4);
+    v_n := (get_byte(v_b, 0)::bigint << 24) | (get_byte(v_b, 1)::bigint << 16)
+         | (get_byte(v_b, 2)::bigint << 8) | get_byte(v_b, 3)::bigint;
+    exit when v_n < 4294000000;
+  end loop;
+  return lpad((v_n % 1000000)::text, 6, '0');
+end;
 $$;
 
 -- The lazy auto-close: an open shift older than 8 hours becomes pending, ends at
@@ -122,6 +153,15 @@ $$;
 -- until 15 minutes after the last wrong PIN. Refused calls while locked do not
 -- compare the PIN (a correct PIN is refused too) and do not extend the lock.
 -- This is at least as strict as "5 failures in any 15-minute window".
+--
+-- COUNT FIRST: every comparison is recorded as a failure BEFORE crypt() runs, and a
+-- correct PIN then restores the state read at the start. So there is no path where a
+-- PIN is compared but not counted (a statement timeout, a dropped connection or any
+-- error after crypt() leaves the failure counted).
+--
+-- READ ONLY: PostgREST runs GET/HEAD /rpc calls in READ ONLY transactions, where
+-- setval() and INSERT fail with different messages. That would be an uncounted PIN
+-- oracle, so a read-only transaction is refused with 'locked' before anything else.
 -- pin_attempts keeps its schema but only ever holds successful unlocks (audit).
 create schema shiftcred_private;
 revoke all on schema shiftcred_private from public, anon, authenticated;
@@ -148,6 +188,19 @@ $$;
 create trigger kitchens_pin_lock after insert on public.kitchens
   for each row execute function public.tg_kitchens_pin_lock();
 
+-- A deleted kitchen takes its lock sequence with it.
+create function public.tg_kitchens_pin_lock_drop() returns trigger
+language plpgsql security definer
+set search_path = public, extensions, pg_temp
+as $$
+begin
+  execute format('drop sequence if exists %s', public._pin_lock_seq(old.id));
+  return old;
+end;
+$$;
+create trigger kitchens_pin_lock_drop after delete on public.kitchens
+  for each row execute function public.tg_kitchens_pin_lock_drop();
+
 -- Checks a kitchen PIN and returns the kitchen id, or raises not_found / locked / bad_pin.
 create function public._check_pin(p_slug text, p_pin text)
 returns uuid
@@ -170,6 +223,9 @@ begin
   if v_id is null then
     raise exception 'not_found';
   end if;
+  if current_setting('transaction_read_only')::boolean then
+    raise exception 'locked';
+  end if;
 
   perform pg_advisory_xact_lock(hashtextextended('shiftcred.pin:' || v_id::text, 0));
   v_seq := public._pin_lock_seq(v_id);
@@ -184,11 +240,14 @@ begin
     raise exception 'locked';
   end if;
 
-  v_ok := p_pin is not null and crypt(p_pin, v_hash) = v_hash;
+  -- Count first (survives the raise below, and any failure after this line).
+  perform setval(v_seq::regclass, v_now * 16 + v_fails + 1);
+  v_ok := p_pin is not null and extensions.crypt(p_pin, v_hash) = v_hash;
   if not v_ok then
-    perform setval(v_seq::regclass, v_now * 16 + v_fails + 1);  -- survives the raise below
     raise exception 'bad_pin';
   end if;
+  -- Correct PIN: undo this call's count by restoring exactly the state read above.
+  perform setval(v_seq::regclass, v_state);
   insert into public.pin_attempts(kitchen_id, ok) values (v_id, true);
   return v_id;
 end;
@@ -220,22 +279,67 @@ $$;
 -- Admin (SQL editor only)
 -- ---------------------------------------------------------------------------
 
--- Creates a kitchen and returns its QR code. Run as postgres in the Supabase SQL editor:
---   select public.create_kitchen('Community Kitchen', 'community-kitchen', '123456', '555-0100');
-create function public.create_kitchen(p_name text, p_slug text, p_pin text, p_phone text)
-returns text
+-- Creates a kitchen and returns its QR code and a GENERATED 6-digit PIN, so a PIN is
+-- never typed into the SQL editor's history. Run as postgres in the Supabase SQL editor:
+--   select * from public.create_kitchen('Community Kitchen', 'community-kitchen', '555-0100');
+-- Write the PIN down from the result; only its bcrypt hash is stored.
+create function public.create_kitchen(p_name text, p_slug text, p_phone text)
+returns table (qr_code text, pin text)
 language plpgsql security definer
 set search_path = public, extensions, pg_temp
 as $$
 declare
   v_code text := public._new_code();
+  v_pin text := public._new_pin();
 begin
-  if p_pin is null or p_pin !~ '^[0-9]{6}$' then
-    raise exception 'bad_pin';
-  end if;
   insert into public.kitchens(name, slug, qr_code, pin_hash, phone)
-  values (btrim(p_name), p_slug, v_code, crypt(p_pin, gen_salt('bf', 10)), nullif(btrim(p_phone), ''));
-  return v_code;
+  values (btrim(p_name), p_slug, v_code, extensions.crypt(v_pin, extensions.gen_salt('bf', 10)),
+          nullif(btrim(p_phone), ''));
+  qr_code := v_code;
+  pin := v_pin;
+  return next;
+end;
+$$;
+
+-- Clears a kitchen's PIN lockout (for when someone locks a kitchen out on purpose).
+--   select public.unlock_kitchen('community-kitchen');
+create function public.unlock_kitchen(p_slug text)
+returns void
+language plpgsql security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_id uuid;
+begin
+  select k.id into v_id from public.kitchens k where k.slug = p_slug;
+  if v_id is null then
+    raise exception 'not_found';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('shiftcred.pin:' || v_id::text, 0));
+  perform setval(public._pin_lock_seq(v_id)::regclass, 0);
+end;
+$$;
+
+-- Replaces a kitchen's PIN with a newly generated one, returns it, and clears any lockout.
+--   select public.reset_kitchen_pin('community-kitchen');
+create function public.reset_kitchen_pin(p_slug text)
+returns text
+language plpgsql security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_id uuid;
+  v_pin text := public._new_pin();
+begin
+  update public.kitchens k
+     set pin_hash = extensions.crypt(v_pin, extensions.gen_salt('bf', 10))
+   where k.slug = p_slug
+  returning k.id into v_id;
+  if v_id is null then
+    raise exception 'not_found';
+  end if;
+  perform public.unlock_kitchen(p_slug);
+  return v_pin;
 end;
 $$;
 
@@ -243,18 +347,20 @@ $$;
 -- Public RPCs
 -- ---------------------------------------------------------------------------
 
+-- Keep-alive. Not security definer: it touches nothing.
 create function public.ping() returns int
-language sql stable security definer
+language sql stable
 set search_path = public, extensions, pg_temp
 as $$ select 1 $$;
 
--- An active kitchen by its QR code (no rows if unknown or inactive).
+-- An active kitchen by its QR code (no rows if unknown or inactive). The slug is not
+-- returned: the poster is public, and the slug is half of what a PIN guesser needs.
 create function public.kitchen_by_code(p_code text)
-returns table (id uuid, name text, slug text)
+returns table (id uuid, name text)
 language sql stable security definer
 set search_path = public, extensions, pg_temp
 as $$
-  select k.id, k.name, k.slug from public.kitchens k where k.qr_code = p_code and k.active
+  select k.id, k.name from public.kitchens k where k.qr_code = p_code and k.active
 $$;
 
 create function public.check_in(p_code text, p_name text)
@@ -378,8 +484,12 @@ language plpgsql security definer
 set search_path = public, extensions, pg_temp
 as $$
 declare
-  v_kitchen uuid := public._check_pin(p_slug, p_pin);
+  v_kitchen uuid;
 begin
+  if p_day is null then
+    raise exception 'not_found';
+  end if;
+  v_kitchen := public._check_pin(p_slug, p_pin);
   perform public._auto_close(null, v_kitchen);
   return query select * from public._kitchen_shift_rows(v_kitchen, p_day, null);
 end;
@@ -399,12 +509,13 @@ language plpgsql security definer
 set search_path = public, extensions, pg_temp
 as $$
 declare
-  v_kitchen uuid := public._check_pin(p_slug, p_pin);
+  v_kitchen uuid;
   v_supervisor text := btrim(p_supervisor);
   v_reason text := nullif(btrim(p_reason), '');
   v_shift public.shifts;
   v_end timestamptz;
 begin
+  v_kitchen := public._check_pin(p_slug, p_pin);
   if v_supervisor is null or char_length(v_supervisor) not between 1 and 40 or v_supervisor ~ '[[:cntrl:]]' then
     raise exception 'bad_name';
   end if;
@@ -490,7 +601,12 @@ revoke all on function public._check_pin(text, text) from public, anon, authenti
 revoke all on function public._pin_lock_seq(uuid) from public, anon, authenticated;
 revoke all on function public.tg_kitchens_pin_lock() from public, anon, authenticated;
 revoke all on function public._kitchen_shift_rows(uuid, date, uuid) from public, anon, authenticated;
-revoke all on function public.create_kitchen(text, text, text, text) from public, anon, authenticated;
+revoke all on function public._new_pin() from public, anon, authenticated;
+revoke all on function public.tg_kitchens_pin_lock_drop() from public, anon, authenticated;
+-- Admin functions: postgres (SQL editor) and service_role only.
+revoke all on function public.create_kitchen(text, text, text) from public, anon, authenticated;
+revoke all on function public.unlock_kitchen(text) from public, anon, authenticated;
+revoke all on function public.reset_kitchen_pin(text) from public, anon, authenticated;
 
 revoke all on function public.ping() from public, anon, authenticated;
 revoke all on function public.kitchen_by_code(text) from public, anon, authenticated;
