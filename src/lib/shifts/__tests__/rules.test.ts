@@ -22,6 +22,10 @@ describe('shiftHours', () => {
       expect(shiftHours(c.checkIn, c.checkOut)).toBe(c.expectedHours)
     })
   }
+
+  test('a reversed checkOut before checkIn is 0, never negative', () => {
+    expect(shiftHours('2026-10-05T12:00:00-07:00', '2026-10-05T09:00:00-07:00')).toBe(0)
+  })
 })
 
 describe('autoCloseAt', () => {
@@ -45,6 +49,16 @@ describe('effectiveShift', () => {
   test('open shift at 7h59 stays open', () => {
     const checkIn = '2026-10-05T09:00:00-07:00'
     const now = new Date(new Date(checkIn).getTime() + (7 * 60 + 59) * 60 * 1000)
+    const s = shift({ checkIn })
+    const eff = effectiveShift(s, now)
+    expect(eff.status).toBe('open')
+    expect(eff.autoClosed).toBe(false)
+    expect(eff.checkOut).toBeNull()
+  })
+
+  test('open shift at exactly 8h stays open (strictly older than 8h auto-closes, not at 8h)', () => {
+    const checkIn = '2026-10-05T09:00:00-07:00'
+    const now = new Date(new Date(checkIn).getTime() + 8 * 60 * 60 * 1000)
     const s = shift({ checkIn })
     const eff = effectiveShift(s, now)
     expect(eff.status).toBe('open')

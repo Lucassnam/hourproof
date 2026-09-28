@@ -31,13 +31,15 @@ export function autoCloseAt(checkIn: string): string {
   return new Date(new Date(checkIn).getTime() + AUTO_CLOSE_HOURS * 60 * 60 * 1000).toISOString()
 }
 
-// Applies the auto-close rule at read time: an open shift older than 8h is
-// treated as pending, closed at exactly 8h, and marked autoClosed so the
-// supervisor can correct it. Any other status passes through unchanged.
+// Applies the auto-close rule at read time: an open shift strictly older
+// than 8h (not yet 8h old still counts as open) is treated as pending,
+// closed at exactly 8h, and marked autoClosed so the supervisor can correct
+// it. Any other status passes through unchanged. Strict `>`, not `>=`, so
+// this agrees with Task 2's SQL, which also auto-closes only past 8h.
 export function effectiveShift(s: Shift, now: Date): Shift {
   if (s.status !== 'open') return s
   const closeAt = autoCloseAt(s.checkIn)
-  if (now.getTime() >= new Date(closeAt).getTime()) {
+  if (now.getTime() > new Date(closeAt).getTime()) {
     return { ...s, status: 'pending', checkOut: closeAt, autoClosed: true }
   }
   return s

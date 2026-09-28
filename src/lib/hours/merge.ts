@@ -2,13 +2,16 @@
 // for the month view. Pure: no storage, no backend calls.
 
 import { monthOf } from '@/lib/dates'
-import { effectiveShift, shiftHours, shiftLogDate } from '@/lib/shifts/rules'
+import { countsToward, effectiveShift, shiftHours, shiftLogDate } from '@/lib/shifts/rules'
 import type { Shift } from '@/lib/shifts/types'
 import type { Entry } from './types'
 
 // Converts shifts into Entries, applying the auto-close rule first so a
 // stale open shift already reads as pending/autoClosed. Open shifts (still
 // genuinely open) get 0 hours since there's nothing to count yet.
+// Entry ids for shift-sourced entries are prefixed `shift-`; a self-logged
+// entry's id is a UUID and never starts with that prefix, so the two id
+// spaces never collide.
 export function shiftsToEntries(shifts: readonly Shift[], now: Date): Entry[] {
   return shifts.map((raw) => {
     const s = effectiveShift(raw, now)
@@ -33,8 +36,10 @@ export function shiftsToEntries(shifts: readonly Shift[], now: Date): Entry[] {
 
 // Merges self-logged entries and kitchen shifts for one month, and flags any
 // calendar date that has both a self-logged 'volunteer' entry and a shift
-// (the "you may have logged this shift twice" case). Only the requested
-// month's entries are returned.
+// that actually counts (pending or confirmed — the "you may have logged this
+// shift twice" case). An open or rejected shift never creates a duplicate
+// date: it doesn't count toward anything, so there's nothing to double-count.
+// Only the requested month's entries are returned.
 export function mergeMonth(
   self: readonly Entry[],
   shifts: readonly Shift[],
@@ -44,11 +49,13 @@ export function mergeMonth(
   const selfMonth = self.filter((entry) => monthOf(entry.date) === month)
   const shiftEntries = shiftsToEntries(shifts, now).filter((entry) => monthOf(entry.date) === month)
 
-  const shiftDates = new Set(shiftEntries.map((entry) => entry.date))
+  const countedShiftDates = new Set(
+    shiftEntries.filter((entry) => entry.verification != null && countsToward(entry.verification)).map((entry) => entry.date),
+  )
   const duplicateDates = Array.from(
     new Set(
       selfMonth
-        .filter((entry) => entry.type === 'volunteer' && (entry.source ?? 'self') === 'self' && shiftDates.has(entry.date))
+        .filter((entry) => entry.type === 'volunteer' && (entry.source ?? 'self') === 'self' && countedShiftDates.has(entry.date))
         .map((entry) => entry.date),
     ),
   ).sort()
