@@ -1,4 +1,5 @@
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { joinNamespace, namespaceFor, resetMockWorld, serverTimeIs } from "./mock-world";
 
 // Volunteer check-in page (/k/<code>, Phase 3, Task 4), against the in-memory mock backend
 // (playwright.config.ts builds with NEXT_PUBLIC_HOURPROOF_BACKEND=mock and serves the mock
@@ -22,23 +23,14 @@ const HOUR = 60 * 60 * 1000;
 // enough; different workers are different processes.
 let ns = "default";
 
+// The namespace helpers live in ./mock-world.ts, shared with the kitchen dashboard's spec.
 async function resetMock(request: APIRequestContext) {
-  const res = await request.post("/api/mock-shifts", {
-    data: { op: "reset", args: { seedSecondKitchen: true } },
-    headers: { "x-hp-mock-ns": ns },
-  });
-  expect(res.ok()).toBe(true);
+  await resetMockWorld(request, ns);
 }
 
 test.beforeEach(async ({ page, request }, testInfo) => {
-  ns = `e2e-${testInfo.testId}-${testInfo.repeatEachIndex}-${testInfo.retry}`;
-  await page.addInitScript((value) => {
-    try {
-      localStorage.setItem("hp.shifts.mockNs", value);
-    } catch {
-      // about:blank has no storage; the real page load runs this again.
-    }
-  }, ns);
+  ns = namespaceFor(testInfo);
+  await joinNamespace(page, ns);
   await resetMock(request);
 });
 
@@ -56,15 +48,6 @@ async function firstCheckIn(page: Page, name = "Maria", code = CODE, kitchen = K
   await page.getByLabel("Your first name or nickname").fill(name);
   await checkInButton(page, kitchen).click();
   await expect(page.getByRole("heading", { level: 1, name: "You're checked in" })).toBeVisible();
-}
-
-// e2e-only time travel: every mock call from this page carries x-hp-now (the mock route
-// honors it only when HOURPROOF_MOCK_SHIFTS=1), so the server thinks it's `at`.
-async function serverTimeIs(page: Page, at: Date) {
-  await page.unroute("**/api/mock-shifts");
-  await page.route("**/api/mock-shifts", (route) =>
-    route.continue({ headers: { ...route.request().headers(), "x-hp-now": at.toISOString() } }),
-  );
 }
 
 async function myShifts(page: Page) {

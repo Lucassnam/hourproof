@@ -47,3 +47,48 @@ export function addMonths(month: string, n: number): string {
   const newMonth = (total % 12) + 1
   return `${String(newYear).padStart(4, '0')}-${String(newMonth).padStart(2, '0')}`
 }
+
+// 'YYYY-MM-DD', n -> 'YYYY-MM-DD' shifted by n calendar days (n may be negative). Pure date
+// arithmetic, so "yesterday" is the previous calendar day even across a DST change (unlike
+// subtracting 24 hours from an instant, which can land on the same California date).
+export function addDays(date: string, n: number): string {
+  const [year, mon, day] = date.split('-').map(Number)
+  const d = new Date(Date.UTC(year, mon - 1, day + n))
+  return d.toISOString().slice(0, 10)
+}
+
+// The minutes California is ahead of UTC (negative: -420 in summer, -480 in winter) at `ms`.
+function californiaOffsetMinutes(ms: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(ms))
+  const n = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  const asUtc = Date.UTC(n('year'), n('month') - 1, n('day'), n('hour') % 24, n('minute'), n('second'))
+  return Math.round((asUtc - (ms - (ms % 1000))) / 60_000)
+}
+
+// The instant (ISO) of a California wall-clock time: '2026-10-31' + '14:05' -> the moment
+// it's 14:05 in California that day. Returns null for a malformed date or time. In the
+// hour a DST change skips or repeats, it picks the reading that's consistent after one
+// correction (good enough for a supervisor typing when a volunteer left).
+export function californiaInstant(date: string, time: string): string | null {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  const tm = /^(\d{2}):(\d{2})$/.exec(time)
+  if (!dm || !tm) return null
+  const [y, mo, d] = [Number(dm[1]), Number(dm[2]), Number(dm[3])]
+  const [h, mi] = [Number(tm[1]), Number(tm[2])]
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null
+  const wall = Date.UTC(y, mo - 1, d, h, mi)
+  // Guess with the offset at the wall time read as UTC, then correct once with the offset
+  // at the guessed instant.
+  let ms = wall - californiaOffsetMinutes(wall) * 60_000
+  ms = wall - californiaOffsetMinutes(ms) * 60_000
+  return new Date(ms).toISOString()
+}

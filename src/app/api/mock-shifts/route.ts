@@ -6,7 +6,6 @@
 // live surface area in a real deployment.
 import { NextResponse } from 'next/server'
 import {
-  createMockRegistry,
   handle,
   normalizeNamespace,
   reset,
@@ -14,13 +13,15 @@ import {
   type MockArgs,
   type MockOp,
 } from '@/lib/shifts/mock-server'
+import { sharedMockRegistry } from '@/lib/shifts/mock-registry'
 import { ShiftBackendError } from '@/lib/shifts/types'
 
 // One in-memory state per namespace (the `x-hp-mock-ns` header; 'default' without it),
-// each mirroring one Supabase project. Module-level so it survives across requests within
-// the same server instance. e2e gives every test its own namespace, so parallel tests
-// can't reset or see each other's data (Task 4 fix round 1, ruling 3).
-const registry = createMockRegistry()
+// each mirroring one Supabase project. Kept on globalThis (mock-registry.ts) so it survives
+// across requests and is the same world the kitchen poster's server actions see. e2e gives
+// every test its own namespace, so parallel tests can't reset or see each other's data
+// (Task 4 fix round 1, ruling 3).
+const registry = sharedMockRegistry()
 
 export async function POST(request: Request) {
   if (process.env.HOURPROOF_MOCK_SHIFTS !== '1') {

@@ -47,8 +47,9 @@ import { spawn } from "node:child_process";
 
 const PORT = 7050;
 const BASE_URL = process.env.MEASURE_BASE_URL ?? `http://localhost:${PORT}`;
-// /k/<code> added in Phase 3, Task 4 (the volunteer check-in page; the mock seed code).
-const ROUTES = ["/", "/screener", "/log", "/k/TESTCODE-0000000000000"];
+// /k/<code> added in Phase 3, Task 4 (the volunteer check-in page; the mock seed code);
+// /kitchen/test-kitchen in Task 5 (the supervisor dashboard; the mock seed slug).
+const ROUTES = ["/", "/screener", "/log", "/k/TESTCODE-0000000000000", "/kitchen/test-kitchen"];
 const BUDGET_KB = 200;
 const SERVER_START_TIMEOUT_MS = 60_000;
 const SERVER_STOP_TIMEOUT_MS = 5_000;

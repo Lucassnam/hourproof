@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Screen } from "@/components/ui/Screen";
 import { buttonClasses } from "@/components/ui/Button";
 import { safeGet, safeSet } from "@/lib/storage/safe";
-import { ShiftBackendError, type BackendErrorCode, type KitchenInfo, type Shift, type ShiftBackend } from "@/lib/shifts/types";
+import { errorCode, loadBackend, withTimeout } from "@/lib/shifts/client-backend";
+import type { BackendErrorCode, KitchenInfo, Shift } from "@/lib/shifts/types";
 import {
   deriveCheckin,
   elapsedParts,
@@ -39,45 +40,9 @@ function nameProblem(name: string): boolean {
   return name.length < 1 || name.length > 40 || CONTROL_CHAR.test(name);
 }
 
-// The backend module (and, behind it, the Supabase or mock client) loads only on this
-// page, and only after it mounts.
-let backendPromise: Promise<ShiftBackend> | null = null;
-function loadBackend(): Promise<ShiftBackend> {
-  backendPromise ??= import("@/lib/shifts/backend")
-    .then((m) => m.getShiftBackend())
-    .catch((err) => {
-      backendPromise = null; // a failed chunk load (no signal) can be retried
-      throw err;
-    });
-  return backendPromise;
-}
-
-// Weak signal can leave a request hanging for minutes with the button stuck on
-// "Checking in…". After this long the page gives up and says there's no signal. If the
-// request did land after all, trying again is safe: check-in is idempotent, and a repeated
-// check-out finds nothing open and shows the current state.
-const REQUEST_TIMEOUT_MS = 20_000;
-function withTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new ShiftBackendError("network", "timeout")), REQUEST_TIMEOUT_MS);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        window.clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
-
-// Anything that isn't a backend error (a chunk that couldn't load, a dropped connection)
-// is treated as no signal.
-function errorCode(err: unknown): BackendErrorCode {
-  return err instanceof ShiftBackendError ? err.code : "network";
-}
+// The backend loads lazily, only on this page and only after it mounts; requests give up
+// after 20 s and say there's no signal (src/lib/shifts/client-backend.ts, shared with the
+// kitchen dashboard).
 
 type View =
   | { kind: "loading" }
