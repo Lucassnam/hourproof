@@ -210,9 +210,11 @@ describe("ShiftCred migration (PGlite)", () => {
     expect(first.status).toBe("open");
     expect(first.check_out).toBeNull();
     expect(first.user_id).toBe(uid);
+    expect(first.kitchen_name).toBe("Kitchen kitchen-a");
 
     const again = await checkIn(uid, a);
     expect(again.id).toBe(first.id);
+    expect(again.kitchen_name).toBe("Kitchen kitchen-a");
 
     expect(await errorOf(checkIn(uid, b))).toBe("already_open_elsewhere");
     const open = await db.query("select count(*)::int as n from public.shifts where status = 'open'");
@@ -254,8 +256,21 @@ describe("ShiftCred migration (PGlite)", () => {
     expect(closed.status).toBe("pending");
     expect(closed.check_out).toBeInstanceOf(Date);
     expect(closed.auto_closed).toBe(false);
+    expect(closed.kitchen_name).toBe("Kitchen kitchen-a");
 
     expect(await errorOf(checkOut(uid, a))).toBe("not_checked_in");
+  });
+
+  it("4c. check_out still returns kitchen_name after the kitchen was deactivated between check-in and check-out", async () => {
+    const a = await createKitchen("kitchen-a", "The Deactivated Kitchen");
+    const uid = randomUUID();
+    await checkIn(uid, a, "Ana");
+
+    await db.query("update public.kitchens set active = false where slug = 'kitchen-a'");
+
+    const closed = await checkOut(uid, a);
+    expect(closed.status).toBe("pending");
+    expect(closed.kitchen_name).toBe("The Deactivated Kitchen");
   });
 
   it("4b. checking out 9 hours later caps the shift at 8 hours and marks it auto-closed", async () => {

@@ -46,29 +46,28 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
     expect(await backend.kitchenByCode('unknown')).toBeNull()
   })
 
-  it('checkIn ensures a session (signs in anonymously if none), then calls check_in(p_code, p_name), then fills kitchenName from kitchen_by_code', async () => {
+  it('checkIn ensures a session (signs in anonymously if none), then calls check_in(p_code, p_name), and maps kitchen_name straight from the row (no second call)', async () => {
     getSessionMock.mockResolvedValueOnce({ data: { session: null } })
-    rpcMock
-      .mockResolvedValueOnce(
-        ok({
-          id: 's1',
-          kitchen_id: 'k1',
-          check_in: '2026-10-05T16:00:00Z',
-          check_out: null,
-          status: 'open',
-          auto_closed: false,
-          confirmed_by: null,
-          reason: null,
-        }),
-      )
-      .mockResolvedValueOnce(ok([{ id: 'k1', name: 'Community Kitchen' }]))
+    rpcMock.mockResolvedValueOnce(
+      ok({
+        id: 's1',
+        kitchen_id: 'k1',
+        check_in: '2026-10-05T16:00:00Z',
+        check_out: null,
+        status: 'open',
+        auto_closed: false,
+        confirmed_by: null,
+        reason: null,
+        kitchen_name: 'Community Kitchen',
+      }),
+    )
 
     const backend = new SupabaseShiftBackend()
     const shift = await backend.checkIn('CODE123', '  Ana  ')
 
     expect(signInAnonymouslyMock).toHaveBeenCalledTimes(1)
+    expect(rpcMock).toHaveBeenCalledTimes(1)
     expect(rpcMock).toHaveBeenNthCalledWith(1, 'check_in', { p_code: 'CODE123', p_name: '  Ana  ' })
-    expect(rpcMock).toHaveBeenNthCalledWith(2, 'kitchen_by_code', { p_code: 'CODE123' })
     expect(shift).toMatchObject({
       id: 's1',
       kitchenId: 'k1',
@@ -79,44 +78,46 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
   })
 
   it('checkIn does not sign in anonymously when a session already exists', async () => {
-    rpcMock
-      .mockResolvedValueOnce(
-        ok({
-          id: 's1',
-          kitchen_id: 'k1',
-          check_in: '2026-10-05T16:00:00Z',
-          check_out: null,
-          status: 'open',
-          auto_closed: false,
-          confirmed_by: null,
-          reason: null,
-        }),
-      )
-      .mockResolvedValueOnce(ok([{ id: 'k1', name: 'Community Kitchen' }]))
+    rpcMock.mockResolvedValueOnce(
+      ok({
+        id: 's1',
+        kitchen_id: 'k1',
+        check_in: '2026-10-05T16:00:00Z',
+        check_out: null,
+        status: 'open',
+        auto_closed: false,
+        confirmed_by: null,
+        reason: null,
+        kitchen_name: 'Community Kitchen',
+      }),
+    )
     const backend = new SupabaseShiftBackend()
     await backend.checkIn('CODE123', 'Ana')
     expect(signInAnonymouslyMock).not.toHaveBeenCalled()
   })
 
-  it('checkOut calls check_out(p_code) and fills kitchenName from kitchen_by_code', async () => {
-    rpcMock
-      .mockResolvedValueOnce(
-        ok({
-          id: 's1',
-          kitchen_id: 'k1',
-          check_in: '2026-10-05T16:00:00Z',
-          check_out: '2026-10-05T19:00:00Z',
-          status: 'pending',
-          auto_closed: false,
-          confirmed_by: null,
-          reason: null,
-        }),
-      )
-      .mockResolvedValueOnce(ok([{ id: 'k1', name: 'Community Kitchen' }]))
+  it('checkOut calls check_out(p_code) and maps kitchen_name straight from the row (no second call), even at an inactive kitchen', async () => {
+    rpcMock.mockResolvedValueOnce(
+      ok({
+        id: 's1',
+        kitchen_id: 'k1',
+        check_in: '2026-10-05T16:00:00Z',
+        check_out: '2026-10-05T19:00:00Z',
+        status: 'pending',
+        auto_closed: false,
+        confirmed_by: null,
+        reason: null,
+        // check_out's own SQL looks the kitchen up with no active filter, so
+        // a real name comes back even for a kitchen deactivated between
+        // check-in and check-out.
+        kitchen_name: 'The Deactivated Kitchen',
+      }),
+    )
     const backend = new SupabaseShiftBackend()
     const shift = await backend.checkOut('CODE123')
+    expect(rpcMock).toHaveBeenCalledTimes(1)
     expect(rpcMock).toHaveBeenNthCalledWith(1, 'check_out', { p_code: 'CODE123' })
-    expect(shift).toMatchObject({ id: 's1', status: 'pending', kitchenName: 'Community Kitchen' })
+    expect(shift).toMatchObject({ id: 's1', status: 'pending', kitchenName: 'The Deactivated Kitchen' })
   })
 
   it("openShift calls my_shifts with a far-past p_since (there's no open_shift RPC) and filters for status open", async () => {

@@ -140,22 +140,21 @@ export class SupabaseShiftBackend implements ShiftBackend {
   async checkIn(code: string, displayName: string): Promise<Shift> {
     const client = await getClient()
     await this.ensureSession(client)
-    const row = await this.rpc<RawShiftRow>(client, 'check_in', { p_code: code, p_name: displayName })
-    // check_in returns public.shifts, which has no kitchen_name column
-    // (Task 2 report, section 5); look the name up separately.
-    const kitchen = await this.kitchenByCode(code)
-    return mapShift(row, kitchen?.name ?? '')
+    // check_in returns every shift column plus kitchen_name directly (Task 3
+    // fix round 1), so no second lookup is needed to name the kitchen.
+    const row = await this.rpc<RawNamedShiftRow>(client, 'check_in', { p_code: code, p_name: displayName })
+    return mapNamedShift(row)
   }
 
   async checkOut(code: string): Promise<Shift> {
     const client = await getClient()
     await this.ensureSession(client)
-    const row = await this.rpc<RawShiftRow>(client, 'check_out', { p_code: code })
-    // Known limitation: check_out works at an inactive kitchen (so a
-    // volunteer isn't stranded), but kitchen_by_code only finds active
-    // kitchens, so kitchenName falls back to '' in that one case.
-    const kitchen = await this.kitchenByCode(code)
-    return mapShift(row, kitchen?.name ?? '')
+    // check_out returns kitchen_name too, including at an inactive kitchen
+    // (the SQL looks the kitchen up without an active filter there, so a
+    // volunteer who is already checked in can still check out and get a
+    // real name back, not '').
+    const row = await this.rpc<RawNamedShiftRow>(client, 'check_out', { p_code: code })
+    return mapNamedShift(row)
   }
 
   async openShift(): Promise<Shift | null> {

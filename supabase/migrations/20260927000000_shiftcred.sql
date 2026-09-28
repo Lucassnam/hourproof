@@ -363,15 +363,31 @@ as $$
   select k.id, k.name from public.kitchens k where k.qr_code = p_code and k.active
 $$;
 
+-- check_in/check_out return every public.shifts column plus kitchen_name, so the
+-- client never needs a second lookup to name the kitchen (Task 3 fix round 1: the
+-- old `returns public.shifts` forced SupabaseShiftBackend to call kitchen_by_code
+-- separately, which returned '' for an inactive kitchen since kitchen_by_code only
+-- finds active ones).
 create function public.check_in(p_code text, p_name text)
-returns public.shifts
+returns table (
+  id uuid, user_id uuid, kitchen_id uuid, check_in timestamptz, check_out timestamptz,
+  status text, auto_closed boolean, confirmed_by text, reason text, decided_at timestamptz,
+  kitchen_name text
+)
 language plpgsql security definer
 set search_path = public, extensions, pg_temp
 as $$
+-- The `user_id` OUT column (from returns table(...)) is in scope as a plpgsql
+-- variable for the rest of the body, which makes the bare `user_id` in
+-- `on conflict (user_id)` below ambiguous (a PL/pgSQL column-vs-variable
+-- collision, not a real ambiguity: on conflict targets are always a table
+-- column list). This pragma tells plpgsql to prefer the table column there.
+#variable_conflict use_column
 declare
   v_uid uuid := auth.uid();
   v_name text := btrim(p_name);
   v_kitchen uuid;
+  v_kitchen_name text;
   v_open public.shifts;
 begin
   if v_uid is null then
@@ -380,7 +396,7 @@ begin
   if v_name is null or char_length(v_name) not between 1 and 40 or v_name ~ '[[:cntrl:]]' then
     raise exception 'bad_name';
   end if;
-  select k.id into v_kitchen from public.kitchens k where k.qr_code = p_code and k.active;
+  select k.id, k.name into v_kitchen, v_kitchen_name from public.kitchens k where k.qr_code = p_code and k.active;
   if v_kitchen is null then
     raise exception 'not_found';
   end if;
@@ -395,7 +411,9 @@ begin
     if v_open.kitchen_id <> v_kitchen then
       raise exception 'already_open_elsewhere';
     end if;
-    return v_open;
+    return query select v_open.id, v_open.user_id, v_open.kitchen_id, v_open.check_in, v_open.check_out,
+      v_open.status, v_open.auto_closed, v_open.confirmed_by, v_open.reason, v_open.decided_at, v_kitchen_name;
+    return;
   end if;
 
   begin
@@ -407,27 +425,34 @@ begin
       raise exception 'already_open_elsewhere';
     end if;
   end;
-  return v_open;
+  return query select v_open.id, v_open.user_id, v_open.kitchen_id, v_open.check_in, v_open.check_out,
+    v_open.status, v_open.auto_closed, v_open.confirmed_by, v_open.reason, v_open.decided_at, v_kitchen_name;
 end;
 $$;
 
 -- Closes this user's open shift at this kitchen. A shift left open past 8 hours is
 -- capped at check_in + 8h and flagged auto_closed (the same result as the lazy auto-close).
 create function public.check_out(p_code text)
-returns public.shifts
+returns table (
+  id uuid, user_id uuid, kitchen_id uuid, check_in timestamptz, check_out timestamptz,
+  status text, auto_closed boolean, confirmed_by text, reason text, decided_at timestamptz,
+  kitchen_name text
+)
 language plpgsql security definer
 set search_path = public, extensions, pg_temp
 as $$
 declare
   v_uid uuid := auth.uid();
   v_kitchen uuid;
+  v_kitchen_name text;
   v_shift public.shifts;
 begin
   if v_uid is null then
     raise exception 'not_checked_in';
   end if;
-  -- An inactive kitchen still lets a volunteer who is already there check out.
-  select k.id into v_kitchen from public.kitchens k where k.qr_code = p_code;
+  -- An inactive kitchen still lets a volunteer who is already there check out;
+  -- its name is still returned regardless of active state.
+  select k.id, k.name into v_kitchen, v_kitchen_name from public.kitchens k where k.qr_code = p_code;
   if v_kitchen is null then
     raise exception 'not_found';
   end if;
@@ -441,7 +466,8 @@ begin
   if not found then
     raise exception 'not_checked_in';
   end if;
-  return v_shift;
+  return query select v_shift.id, v_shift.user_id, v_shift.kitchen_id, v_shift.check_in, v_shift.check_out,
+    v_shift.status, v_shift.auto_closed, v_shift.confirmed_by, v_shift.reason, v_shift.decided_at, v_kitchen_name;
 end;
 $$;
 
