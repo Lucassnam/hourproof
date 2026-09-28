@@ -8,22 +8,46 @@
     "callCounty": "Llame a su condado: <num>{phone}</num>",
     "english": "English",
     "spanish": "Español",
-    "source": "Fuente"
+    "source": "Fuente",
+    "sourceN": "Fuente {n}"
   },
   "home": {
     "title": "Vea si la regla de trabajo de CalFresh le aplica a usted",
     "subtitle": "Responda unas preguntas cortas. Toma unos 2 minutos.",
-    "cta": "Vea si la regla le aplica"
+    "cta": "Vea si la regla le aplica",
+    "trackHours": "Anote mis horas",
+    "tryDemo": "Probar la demostración",
+    "demoNeedsJs": "La demostración necesita que JavaScript esté activado en su navegador.",
+    "demoNeedsStorage": "La demostración necesita que su navegador permita guardar datos del sitio."
   },
   "screener": {
     "questionOf": "Pregunta {n} de {total}",
     "englishOnly": "(solo en inglés)",
-    "whatProofHelps": "Qué prueba ayuda"
+    "checklist": {
+      "title": "¿Le aplica alguna de estas situaciones?",
+      "sub": "Marque todas las que le apliquen.",
+      "more": "Más sobre esto",
+      "continue": "Continuar ({n, plural, one {# marcada} other {# marcadas}})",
+      "none": "Ninguna de estas me aplica",
+      "unsure": "No estoy seguro/a"
+    }
   },
   "result": {
     "becauseYes": "Usted respondió que sí a: {question}",
     "becauseUnsure": "No estaba seguro/a sobre: {question}",
     "notDecision": "Esto no es una decisión. Solo su condado puede decidir.",
+    "checklistUnsure": "la lista de situaciones",
+    "why": "Por qué",
+    "youChecked": "Usted marcó:",
+    "whatToBring": "Qué llevar",
+    "whatToSay": "Qué decir",
+    "sayIntro": "Cuando llame, puede decir:",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "startTracking": "Empezar a registrar mis horas",
+    "trackWhileChecking": "Registre sus horas mientras confirma",
+    "print": "Imprimir o guardar esta página",
+    "date": "Fecha: {date}",
     "not_subject": {
       "title": "Es probable que la regla no le aplique a usted.",
       "body": "No necesita reportar horas de trabajo para esta regla en este momento."
@@ -42,7 +66,7 @@
     },
     "subject": {
       "title": "Es probable que la regla le aplique a usted. En su próxima renovación de CalFresh, es posible que necesite 80 horas al mes de trabajo, voluntariado o un programa aprobado.",
-      "body": "Empiece a llevar registro de sus horas ahora para tener prueba si su condado se lo pide. Pregúntele a su condado cuándo empieza para usted."
+      "body": "Empiece a registrar sus horas ahora para tener prueba lista. Pregúntele a su condado cuándo empieza para usted."
     },
     "ask_county": {
       "title": "No podemos saberlo con sus respuestas. Su condado sí puede.",
@@ -60,5 +84,116 @@
   },
   "noscript": {
     "message": "Este cuestionario necesita JavaScript. Llame a su condado:"
+  },
+  "log": {
+    "title": "Sus horas",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "pastMonth": "Mes pasado",
+    "loading": "Cargando sus horas…",
+    "loadError": "Este navegador no puede guardar horas en este teléfono. Pruebe otro navegador, como Chrome.",
+    "noscript": "El registro de horas necesita JavaScript para guardar horas en su teléfono.",
+    "ring": {
+      "of80": "de 80 horas",
+      "done": "Listo este mes",
+      "label": "{counted} de 80 horas este mes",
+      "labelMet": "{counted} de 80 horas este mes. Listo este mes.",
+      "labelPast": "{counted} de 80 horas en {month}",
+      "donePast": "Mes cumplido"
+    },
+    "pace": {
+      "on_track": "Va bien. A este ritmo llegará a {projected} horas.",
+      "behind": "Para llegar a 80 este mes: {remaining} {remainingN, plural, one {hora} other {horas}} más en {daysLeft, plural, one {# día} other {# días}}, unas {perDay} al día.",
+      "behindLastDay": "Para llegar a 80 este mes: {remaining} {remainingN, plural, one {hora} other {horas}} más. Hoy es el último día del mes.",
+      "met": "Ya tiene 80 horas este mes. Guarde prueba de cada hora.",
+      "not_started": "Todavía no tiene horas este mes.",
+      "pastMet": "Este mes ya terminó. Tuvo {counted} horas. Guarde prueba de cada hora.",
+      "pastBehind": "Este mes ya terminó. Tuvo {counted} de 80 horas.",
+      "pastEmpty": "Este mes ya terminó. No se guardaron horas."
+    },
+    "notes": {
+      "title": "Bueno saber",
+      "job_search_outside_program": "Buscar trabajo por su cuenta no cuenta. Solo cuenta como parte de un programa de empleo, como CalFresh E&T, WIOA o Trade Act.",
+      "job_search_no_program": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Ninguna de estas horas cuenta este mes.",
+      "job_search_capped": "Algunas de sus horas de búsqueda de trabajo no se cuentan aquí. En un programa de empleo, la búsqueda de trabajo solo cuenta mientras sea menos que sus otras horas del programa. Pregunte en su programa si su caso es diferente.",
+      "workfare_mixed": "El trabajo por beneficios (workfare) no se puede sumar a sus otras horas, así que el círculo no lo cuenta. Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita.",
+      "workfare_only": "El círculo no cuenta el trabajo por beneficios (workfare). Su condado fija sus horas de workfare según el monto de sus beneficios. Pregúnteles cuántas necesita."
+    },
+    "addHours": "Agregar horas",
+    "listTitle": "Horas guardadas",
+    "empty": "Todavía no hay horas guardadas este mes.",
+    "emptyWhat": "Lo que cuenta: trabajo pagado, voluntariado y programas de capacitación para el empleo. Toque “Agregar horas” después de cada turno.",
+    "hoursN": "{n} {count, plural, one {hora} other {horas}}",
+    "edit": "Editar",
+    "editLabel": "Editar: {type}, {hours}, {date}",
+    "notCounted": "No cuenta",
+    "saved": "Guardado.",
+    "deleted": "Borrado.",
+    "savedOnPhone": "Sus horas se guardan solo en este teléfono.",
+    "offline": "Sus horas quedan guardadas en este teléfono, aunque no tenga señal.",
+    "checkRule": "Vea si la regla le aplica",
+    "types": {
+      "work": {
+        "label": "Trabajo pagado",
+        "hint": "Un empleo, trabajos por app o trabajo por su cuenta"
+      },
+      "volunteer": {
+        "label": "Voluntariado",
+        "hint": "Trabajo sin pago para una organización sin fines de lucro o comunitaria"
+      },
+      "program": {
+        "label": "Capacitación o programa de empleo",
+        "hint": "Como CalFresh E&T o WIOA"
+      },
+      "job_search": {
+        "label": "Búsqueda de trabajo",
+        "hint": "Buscar trabajo y enviar solicitudes"
+      },
+      "workfare": {
+        "label": "Trabajo por beneficios (workfare)",
+        "hint": "Trabajo que su condado le asigna por sus beneficios"
+      }
+    },
+    "form": {
+      "addTitle": "Agregar horas",
+      "editTitle": "Editar horas",
+      "date": "Fecha",
+      "type": "¿Qué tipo de horas?",
+      "hours": "¿Cuántas horas?",
+      "hoursHint": "Use cuartos de hora, como 1,5 o 2,25.",
+      "less": "15 minutos menos",
+      "more": "15 minutos más",
+      "quickLabel": "Opciones rápidas",
+      "chip": "{n} {n, plural, one {hora} other {horas}}",
+      "inProgram": "¿Es parte de un programa de empleo?",
+      "inProgramHint": "Como CalFresh E&T, WIOA o Trade Act. La búsqueda de trabajo solo cuenta si es parte de uno.",
+      "place": "¿Dónde? (opcional)",
+      "note": "Nota (opcional)",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Borrar",
+      "deleteConfirm": "¿Borrar esta entrada? No se puede deshacer.",
+      "deleteYes": "Sí, borrar",
+      "deleteNo": "No borrar",
+      "saveError": "No se pudo guardar en este teléfono. Intente de nuevo.",
+      "errors": {
+        "bad_date": "Elija una fecha de hoy o anterior.",
+        "bad_hours": "Escriba de 0,25 a 24 horas, en cuartos de hora (como 1,5).",
+        "too_many_hours_that_day": "Son más de 24 horas en este día, contando sus otras entradas de ese día.",
+        "in_program_only_for_job_search": "Solo la búsqueda de trabajo se puede marcar como parte de un programa de empleo."
+      }
+    },
+    "workfareTag": "Lo cuenta su condado",
+    "mayCountPartly": "Puede contar en parte",
+    "rule": {
+      "title": "Cómo funciona la regla",
+      "adds": "Si la regla le aplica, necesita 80 horas al mes. El trabajo, el voluntariado y los programas de empleo se suman.",
+      "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
+      "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
+    }
+  },
+  "demo": {
+    "banner": "Demostración: datos de ejemplo, no son suyos.",
+    "exit": "Salir de la demostración"
   }
 }

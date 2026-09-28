@@ -3,42 +3,46 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { nextStep, goBack, displayOutcome, ruleText } from "@/lib/rules/engine";
+import { nextStep, goBack, ruleText, checklistAnswers } from "@/lib/rules/engine";
 import type { Answer, Answers, Lang } from "@/lib/rules/engine";
 import type { RuleSet } from "@/lib/rules/schema";
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { ChoiceButtons } from "@/components/ui/ChoiceButtons";
+import { safeGet, safeRemove, safeSet } from "@/lib/storage/safe";
+import { Checklist, CHECKLIST_DRAFT_KEY, type ChecklistMode } from "./Checklist";
 import { Result } from "./Result";
 
-const STORAGE_KEY = "hp.screener";
+// Session-scoped (one tab, cleared when it closes): {"rulesVersion": "...", "answers": {...}}.
+// Answers saved under a different rules version are dropped, since the questions may differ.
+const STORAGE_KEY = "hp.screener.v2";
+// Phase 1's key (bare answers, no version). Removed on sight; never read.
+const LEGACY_STORAGE_KEY = "hp.screener";
 
-function loadStoredAnswers(): Answers {
+const ANSWER_VALUES: ReadonlySet<string> = new Set(["yes", "no", "unsure"]);
+
+function loadStoredAnswers(rulesVersion: string): Answers {
+  const raw = safeGet("session", STORAGE_KEY);
+  if (!raw) return {};
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") return parsed as Answers;
+    if (parsed && typeof parsed === "object") {
+      const { rulesVersion: storedVersion, answers } = parsed as { rulesVersion?: unknown; answers?: unknown };
+      if (storedVersion === rulesVersion && answers && typeof answers === "object") {
+        const out: Record<string, Answer> = {};
+        for (const [k, v] of Object.entries(answers)) if (typeof v === "string" && ANSWER_VALUES.has(v)) out[k] = v as Answer;
+        return out;
+      }
+    }
   } catch {
-    // sessionStorage may be unavailable or throw (private mode); start fresh.
+    // Stored value may be malformed; start fresh.
   }
+  safeRemove("session", STORAGE_KEY);
   return {};
 }
 
-function saveStoredAnswers(answers: Answers) {
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
-  } catch {
-    // Storage may throw; the screener still works for this page view without persistence.
-  }
-}
-
-function clearStoredAnswers() {
-  try {
-    window.sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nothing to do if storage isn't available.
-  }
+function saveStoredAnswers(rulesVersion: string, answers: Answers) {
+  safeSet("session", STORAGE_KEY, JSON.stringify({ rulesVersion, answers }));
 }
 
 export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
@@ -52,28 +56,39 @@ export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
   const [restored, setRestored] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // Restore any in-progress answers once, on mount (may jump from question 1 to the saved one).
+  // Restore any in-progress answers once, on mount (may jump from question 1 to the saved screen).
   useEffect(() => {
-    setAnswers(loadStoredAnswers());
+    safeRemove("session", LEGACY_STORAGE_KEY);
+    setAnswers(loadStoredAnswers(ruleSet.version));
     setRestored(true);
-  }, []);
+  }, [ruleSet.version]);
 
   // Persist on every change, but only after the initial restore has happened,
   // so we don't immediately overwrite storage with an empty object.
   useEffect(() => {
     if (!restored) return;
-    saveStoredAnswers(answers);
-  }, [answers, restored]);
+    saveStoredAnswers(ruleSet.version, answers);
+  }, [answers, restored, ruleSet.version]);
 
   const step = nextStep(ruleSet, answers);
-  const stepKey = step.type === "question" ? step.rule.id : `result-${step.ruleId ?? "subject"}`;
+  const stepKey =
+    step.type === "question"
+      ? step.rule.id
+      : step.type === "checklist"
+        ? "checklist"
+        : `result-${step.outcome}-${step.ruleIds.join(",")}-${step.unsureAt ?? ""}`;
 
+  // Focus moves to the new screen's heading, so screen readers announce it.
   useEffect(() => {
     headingRef.current?.focus();
   }, [stepKey]);
 
   const handleAnswer = (id: string, answer: Answer) => {
     setAnswers((prev) => ({ ...prev, [id]: answer }));
+  };
+
+  const handleChecklist = (checkedIds: string[], mode: ChecklistMode) => {
+    setAnswers((prev) => ({ ...prev, ...checklistAnswers(ruleSet, checkedIds, mode) }));
   };
 
   const handleBack = () => {
@@ -86,36 +101,43 @@ export function Screener({ ruleSet }: { ruleSet: RuleSet }) {
   };
 
   const handleStartOver = () => {
-    clearStoredAnswers();
+    safeRemove("session", STORAGE_KEY);
+    safeRemove("session", CHECKLIST_DRAFT_KEY);
     setAnswers({});
   };
 
   const backButton = (
-    <Button variant="ghost" onClick={handleBack} aria-label={t("back")}>
-      {t("back")}
-    </Button>
+    <div className="print:hidden">
+      <Button variant="ghost" onClick={handleBack}>
+        {t("back")}
+      </Button>
+    </div>
   );
 
   if (step.type === "result") {
-    const outcome = displayOutcome(ruleSet, step);
-    const rule = step.ruleId ? ruleSet.rules.find((r) => r.id === step.ruleId) ?? null : null;
-    // The rule can be attached to this result via a "yes" answer (e.g. an exemption) or
-    // an "unsure" answer (ask_county is reachable from unsure on ANY question). Result
-    // needs to know which, so it never claims the user said yes when they said unsure.
-    const answer = step.ruleId ? answers[step.ruleId] : undefined;
-
     return (
       <Screen>
         {backButton}
-        <Result
-          outcome={outcome}
-          rule={rule}
-          answer={answer}
-          county={ruleSet.county}
-          generalSourceUrl={ruleSet.generalSourceUrl}
+        <Result step={step} ruleSet={ruleSet} lang={locale} headingRef={headingRef} onStartOver={handleStartOver} />
+      </Screen>
+    );
+  }
+
+  if (step.type === "checklist") {
+    return (
+      <Screen>
+        {backButton}
+        <Checklist
+          key={stepKey}
+          rules={step.rules}
+          notes={step.notes}
+          answers={answers}
+          rulesVersion={ruleSet.version}
+          index={step.index}
+          total={step.total}
           lang={locale}
           headingRef={headingRef}
-          onStartOver={handleStartOver}
+          onSubmit={handleChecklist}
         />
       </Screen>
     );

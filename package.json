@@ -13,9 +13,11 @@
     "start:e2e": "next start -p 7051",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "measure": "node scripts/measure-js.mjs"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "next": "^16.3.6",
     "next-intl": "^4.14.7",
     "react": "^19.3.0",
@@ -28,6 +30,8 @@
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "fake-indexeddb": "^6.2.5",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"

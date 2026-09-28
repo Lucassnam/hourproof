@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Screen } from "@/components/ui/Screen";
 import { buttonClasses } from "@/components/ui/Button";
 import { NoScriptNotice } from "@/components/ui/NoScriptNotice";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { TryDemoButton } from "@/components/ui/TryDemoButton";
 import { ruleSet } from "@/lib/rules/load";
 import { setLocale } from "./actions";
 
@@ -17,8 +19,8 @@ export default async function Home() {
   return (
     <>
       <NoScriptNotice county={ruleSet.county} />
-      <Screen languageSwitch={false}>
-        <form action={setLocale} className="flex gap-3">
+      <Screen languageSwitch={false} banner={<DemoBanner />}>
+        <form action={setLocale} className="flex flex-wrap gap-3">
           <input type="hidden" name="returnTo" value="/" />
           <button
             type="submit"
@@ -45,9 +47,17 @@ export default async function Home() {
         <h1 className="font-display text-3xl font-semibold">{ht("title")}</h1>
         <p className="text-lg text-text-muted">{ht("subtitle")}</p>
 
-        <Link href="/screener" className={buttonClasses({ size: "lg", fullWidth: true })}>
-          {ht("cta")}
-        </Link>
+        {/* Three entry points, in order of what most people need: check the rule first,
+            track hours if that's already settled, or see the whole story with sample data. */}
+        <div className="flex flex-col gap-3">
+          <Link href="/screener" className={buttonClasses({ variant: "strong", size: "lg", fullWidth: true })}>
+            {ht("cta")}
+          </Link>
+          <Link href="/log" className={buttonClasses({ variant: "primary", size: "lg", fullWidth: true })}>
+            {ht("trackHours")}
+          </Link>
+          <TryDemoButton />
+        </div>
       </Screen>
     </>
   );

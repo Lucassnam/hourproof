@@ -11,6 +11,8 @@
   --signal: #5b4bdb;
   --danger: #b42318;
   --border: #768091;
+  /* Native controls (the checklist's checkboxes) follow the theme. */
+  color-scheme: light;
 }
 
 [data-theme="dark"] {
@@ -24,6 +26,7 @@
   --signal: #8b7cff;
   --danger: #ff6b6b;
   --border: #6b7688;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -48,11 +51,63 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Pages with a sticky bottom bar (the screener checklist's actions, the hour form's
+ * Save/Cancel) mark it with data-sticky-bar. Keep Tab, focus() and find-in-page scrolling
+ * from parking an element underneath it (WCAG 2.4.11). --sticky-bar-h is the bar's measured
+ * height (useStickyBarHeight); 11rem covers the tallest bar if it hasn't been measured yet. */
+html:has([data-sticky-bar]) {
+  scroll-padding-bottom: calc(var(--sticky-bar-h, 11rem) + 1rem);
+}
+
 /* In the base layer so utilities (e.g. font-sans on the "What proof helps" h2) can override it. */
 @layer base {
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
+  }
+}
+
+/*
+ * Print / "Save as PDF" of a screener result. Components mark what to drop with Tailwind's
+ * `print:hidden` and print-only lines (the date, the phone number as text) with
+ * `hidden print:block`; this block handles the page itself. The header (language switch and
+ * theme toggle) and every button are hidden, and the page always prints in the light
+ * palette on white paper, even when the screen is in dark mode. The hex values below repeat
+ * the light tokens on purpose: print always uses the light theme.
+ */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #0e1116;
+    --text-muted: #4b5563;
+    --proof: #127a52;
+    --pace: #9a5b00;
+    --signal: #5b4bdb;
+    --danger: #b42318;
+    --border: #768091;
+    color-scheme: light;
+  }
+
+  header,
+  button,
+  noscript {
+    display: none !important;
+  }
+
+  body {
+    font-size: 14pt;
+  }
+
+  main {
+    max-width: none;
+  }
+
+  section,
+  blockquote {
+    break-inside: avoid;
   }
 }
