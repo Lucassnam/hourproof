@@ -12,6 +12,7 @@
     "start": "next start -p 7050",
     "start:e2e": "next start -p 7051",
     "test": "vitest run",
+    "test:sql": "vitest run test/sql",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "measure": "node scripts/measure-js.mjs"
@@ -25,6 +26,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.3",
