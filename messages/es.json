@@ -190,7 +190,8 @@
       "adds": "Si la regla le aplica, necesita 80 horas al mes. El trabajo, el voluntariado y los programas de empleo se suman.",
       "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
       "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
-    }
+    },
+    "proofLink": "Sus comprobantes"
   },
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",
@@ -327,5 +328,55 @@
       "step3": "3. Toque Registrar entrada.",
       "typeAddress": "¿No tiene cámara? Escriba esta dirección:"
     }
+  },
+  "proof": {
+    "title": "Sus comprobantes",
+    "intro": "Guarde fotos y archivos PDF que muestren sus horas, en una sección para cada tipo de actividad. Cuando su condado pida comprobantes, usted mismo los envía o los lleva.",
+    "anyProof": "Su condado no puede exigir un solo tipo de comprobante. Talones de pago, registros de asistencia a un programa y cartas firmadas son ejemplos.",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "loading": "Cargando…",
+    "loadError": "Este navegador no puede abrir los archivos guardados aquí. La navegación privada o el almacenamiento bloqueado pueden causar esto.",
+    "empty": "No hay horas anotadas en {month}.",
+    "emptyAction": "Anote horas en su registro",
+    "logged": "{hours} anotadas",
+    "add": "Agregar fotos o PDF",
+    "addLabel": "Agregar fotos o PDF para {type}",
+    "noFiles": "Todavía no hay archivos.",
+    "open": "Abrir",
+    "openLabel": "Abrir {name}",
+    "remove": "Quitar",
+    "removeLabel": "Quitar {name}",
+    "added": "Se agregó {name}.",
+    "removed": "Se quitó {name}.",
+    "errors": {
+      "bad_type": "No se agregó {name}. Solo se pueden agregar fotos y archivos PDF.",
+      "too_big": "No se agregó {name}. Pesa más de 20 MB.",
+      "save": "No se agregó {name}. Puede que este teléfono no tenga espacio."
+    },
+    "cf888": {
+      "why": "Las horas de voluntariado se tienen que verificar. Una forma es el formulario CF 888 de California, firmado por alguien de la organización.",
+      "fill": "Llenar un CF 888 para {place}",
+      "fillUnnamed": "Llenar un CF 888",
+      "blank": "CF 888 en blanco del estado (PDF)",
+      "heading": "CF 888 para {place}",
+      "headingUnnamed": "CF 888",
+      "privacy": "Lo que escriba aquí solo va al PDF en este teléfono. No se guarda ni se envía a ningún lugar.",
+      "name": "Su nombre completo",
+      "birthdate": "Su fecha de nacimiento",
+      "address1": "Dirección",
+      "address2": "Ciudad, estado y código postal",
+      "organization": "Organización",
+      "month": "Mes",
+      "hours": "Horas",
+      "hoursHelp": "De su registro. El representante de la organización revisa este número.",
+      "download": "Descargar el CF 888 lleno",
+      "preparing": "Preparando el PDF…",
+      "error": "No se pudo preparar el PDF. Inténtelo de nuevo o use el formulario en blanco.",
+      "next": "Después: pida al representante de la organización que revise las horas, llene su parte y firme. Luego agregue una foto del formulario firmado en la sección de Voluntariado.",
+      "close": "Cerrar"
+    },
+    "backToLog": "Volver a su registro de horas",
+    "savedOnPhone": "Sus archivos se guardan solo en este teléfono."
   }
 }

@@ -190,7 +190,8 @@
       "adds": "If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up.",
       "jobSearch": "Job search counts only as part of a job program. Workfare is checked differently by your county.",
       "report": "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days."
-    }
+    },
+    "proofLink": "Your proof documents"
   },
   "demo": {
     "banner": "Demo — sample data, not yours.",
@@ -327,5 +328,55 @@
       "step3": "3. Tap Check in.",
       "typeAddress": "No camera? Type this address:"
     }
+  },
+  "proof": {
+    "title": "Your proof",
+    "intro": "Keep photos and PDF files that show your hours, one box for each kind of activity. When your county asks for proof, you send or bring these yourself.",
+    "anyProof": "Your county can't require one specific kind of proof. Pay stubs, program attendance records and signed letters are all examples.",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "loading": "Loading…",
+    "loadError": "This browser can't open saved files here. Private browsing or blocked site storage can cause this.",
+    "empty": "No hours logged in {month}.",
+    "emptyAction": "Add hours to your log",
+    "logged": "{hours} logged",
+    "add": "Add photos or PDFs",
+    "addLabel": "Add photos or PDFs for {type}",
+    "noFiles": "No files added yet.",
+    "open": "Open",
+    "openLabel": "Open {name}",
+    "remove": "Remove",
+    "removeLabel": "Remove {name}",
+    "added": "Added {name}.",
+    "removed": "Removed {name}.",
+    "errors": {
+      "bad_type": "{name} wasn't added. Only photos and PDF files can be added.",
+      "too_big": "{name} wasn't added. It's over 20 MB.",
+      "save": "{name} wasn't added. This phone may be out of storage."
+    },
+    "cf888": {
+      "why": "Volunteer hours have to be verified. One way is California's CF 888 form, signed by someone at the organization.",
+      "fill": "Fill a CF 888 for {place}",
+      "fillUnnamed": "Fill a CF 888",
+      "blank": "Blank CF 888 from the state (PDF)",
+      "heading": "CF 888 for {place}",
+      "headingUnnamed": "CF 888",
+      "privacy": "What you type here only goes into the PDF on this phone. It isn't saved or sent anywhere.",
+      "name": "Your full name",
+      "birthdate": "Your birthdate",
+      "address1": "Street address",
+      "address2": "City, state and ZIP",
+      "organization": "Organization",
+      "month": "Month",
+      "hours": "Hours",
+      "hoursHelp": "From your log. The organization's representative checks this number.",
+      "download": "Download the filled CF 888",
+      "preparing": "Making the PDF…",
+      "error": "The PDF couldn't be made. Try again, or use the blank form.",
+      "next": "Next: ask the organization's representative to check the hours, fill in their part and sign. Then add a photo of the signed form in the Volunteering box.",
+      "close": "Close"
+    },
+    "backToLog": "Back to your hour log",
+    "savedOnPhone": "Your files are saved only on this phone."
   }
 }
