@@ -11,6 +11,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { monthOf } from '@/lib/dates'
 import { safeGet, safeSet } from '@/lib/storage/safe'
+import { closeProofStoresForTests, openProofStore } from '@/lib/proof/files'
 import { demoEntries } from './demo'
 import { validateEntry } from './summarize'
 import type { Entry, EntryError } from './types'
@@ -117,6 +118,7 @@ export async function closeAllStoresForTests(): Promise<void> {
     const db = await connection
     db.close()
   }
+  await closeProofStoresForTests()
 }
 
 function sortEntries(entries: Entry[]): Entry[] {
@@ -189,6 +191,7 @@ export { demoEntries }
 export async function startDemo(today: string): Promise<void> {
   const store = await openStore('demo')
   await store.clear()
+  await (await openProofStore('demo')).clear()
   for (const entry of demoEntries(today)) {
     await store.put(entry)
   }
@@ -198,5 +201,12 @@ export async function startDemo(today: string): Promise<void> {
 export async function exitDemo(): Promise<void> {
   const store = await openStore('demo')
   await store.clear()
+  // The demo's sample uploads go with it (only the demo database, never real proof). A
+  // failure here must not keep the person stuck in demo mode; startDemo clears them anyway.
+  try {
+    await (await openProofStore('demo')).clear()
+  } catch {
+    // Left for the next startDemo to clear.
+  }
   setMode('real')
 }
