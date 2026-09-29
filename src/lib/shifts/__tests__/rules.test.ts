@@ -87,6 +87,13 @@ describe('needsCorrection', () => {
     expect(needsCorrection(s, '2026-10-05T18:00:00-07:00')).toBe(false) // 09:00 + 9h
   })
 
+  test('the 10h limit is on real elapsed time, like the SQL: 10h05 needs correction, exactly 10h does not', () => {
+    // 10h05 rounds down to 10.0 hours, but it is still over the limit.
+    expect(needsCorrection(shift({ checkOut: '2026-10-05T19:05:00-07:00' }))).toBe(true)
+    expect(needsCorrection(shift({ checkOut: '2026-10-05T19:00:00-07:00' }))).toBe(false)
+    expect(needsCorrection(shift({ checkOut: '2026-10-05T19:00:01-07:00' }))).toBe(true)
+  })
+
   test('a correction before check-in still needs correction', () => {
     const s = shift({ checkOut: '2026-10-05T19:15:00-07:00' })
     expect(needsCorrection(s, '2026-10-05T08:00:00-07:00')).toBe(true)

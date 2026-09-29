@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // `next dev` logs every Server Function call with its arguments by default. The kitchen
+  // poster's actions take the kitchen PIN as an argument, so that log would print it.
+  // See node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/logging.md.
+  logging: {
+    serverFunctions: false,
+  },
 };
 
 export default withNextIntl(nextConfig);

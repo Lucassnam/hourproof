@@ -1,9 +1,12 @@
 "use server";
 
 // Server actions for the kitchen's QR poster (/kitchen/<slug>/poster). The PIN arrives in
-// the action's POST body (never a URL), goes straight to the backend's poster_code or
-// rotate_code, and is not stored or logged anywhere on the way. The QR itself is drawn here,
-// on the server, so the qrcode library never ships to a browser.
+// the action's POST body (never a URL) and goes straight to the backend's poster_code or
+// rotate_code. This code never stores or logs it, and every error is caught and mapped to a
+// code, so nothing carrying the arguments reaches Next's error log. `next dev` would
+// otherwise log each Server Function call *with its arguments* (the PIN included); that's
+// turned off in next.config.ts (`logging.serverFunctions: false`). The QR itself is drawn
+// here, on the server, so the qrcode library never ships to a browser.
 //
 // Which backend: the same choice getShiftBackend() makes in the browser.
 //   - Supabase env set: the SupabaseShiftBackend, from the server, with the anon key. The
@@ -19,6 +22,7 @@
 //   - Otherwise: 'unavailable'.
 import { headers } from "next/headers";
 import QRCode from "qrcode";
+import { checkInUrl, posterOrigin } from "@/lib/shifts/poster-url";
 import { SupabaseShiftBackend } from "@/lib/shifts/supabase";
 import { ShiftBackendError, type BackendErrorCode, type KitchenInfo } from "@/lib/shifts/types";
 
@@ -51,29 +55,26 @@ async function posterBackend(ns: string | null): Promise<PosterOps | null> {
   return null;
 }
 
-const HOST = /^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$/;
-
-function firstValue(v: string | null): string | null {
-  const first = v?.split(",")[0]?.trim();
-  return first ? first : null;
-}
-
-// The address the phone camera opens: https://<host>/k/<code>, with the host this page was
-// reached at (x-forwarded-host on Vercel, host on localhost), so a poster printed from the
-// deployed site points at the deployed site.
-async function checkInUrl(code: string): Promise<string | null> {
-  const h = await headers();
-  const host = firstValue(h.get("x-forwarded-host")) ?? firstValue(h.get("host"));
-  if (!host || !HOST.test(host)) return null;
-  const forwarded = firstValue(h.get("x-forwarded-proto"));
-  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
-  const proto = forwarded === "http" || forwarded === "https" ? forwarded : local ? "http" : "https";
-  return `${proto}://${host}/k/${encodeURIComponent(code)}`;
+// The address the camera opens. Canonical by default (NEXT_PUBLIC_SITE_URL, else Vercel's
+// production domain; see poster-url.ts); the request's own host only in development and
+// e2e, so a poster printed from a preview deployment never points at that preview.
+async function checkInUrlFor(code: string): Promise<string | null> {
+  const allowRequestHost = process.env.NODE_ENV !== "production" || process.env.HOURPROOF_MOCK_SHIFTS === "1";
+  const origin = posterOrigin(
+    {
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    },
+    await headers(),
+    allowRequestHost,
+  );
+  return origin ? checkInUrl(origin, code) : null;
 }
 
 async function render(ops: PosterOps, code: string): Promise<PosterResult> {
-  const url = await checkInUrl(code);
-  if (!url) return { ok: false, error: "network" };
+  const url = await checkInUrlFor(code);
+  // No canonical site address configured (see .env.example): no poster, not a guessed one.
+  if (!url) return { ok: false, error: "unavailable" };
   const [kitchen, raw] = await Promise.all([
     ops.kitchenByCode(code),
     QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 4 }),

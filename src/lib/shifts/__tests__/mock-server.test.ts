@@ -410,6 +410,41 @@ describe('mock-server (contract tests mirroring the SQL test list)', () => {
     ).toBe('bad_pin')
   })
 
+  it("8b. decide: an auto-closed shift can't be confirmed without a corrected end time; rejecting it needs none", () => {
+    const state = createMockState()
+    const now = new Date('2026-10-05T20:00:00Z')
+    const kitchenA = handle(state, 'kitchenByCode', { code: DEFAULT_CODE }, undefined, now) as { id: string }
+    const ci = new Date(now.getTime() - 9 * HOUR)
+    // Open for 9 hours: decide's own auto-close closes it at 8h and marks it autoClosed.
+    const s1 = insertShift(state, { userId: randomUUID(), kitchenId: kitchenA.id, checkIn: ci.toISOString(), status: 'open' })
+    const base = { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s1.id, supervisor: 'Maria' }
+    expect(errorCodeOf(() => handle(state, 'decide', { ...base, decision: 'confirm' }, undefined, now))).toBe('needs_correction')
+    expect(findShift(state, s1.id)).toMatchObject({ status: 'pending', autoClosed: true })
+    const fixed = handle(
+      state,
+      'decide',
+      { ...base, decision: 'confirm', checkOut: new Date(ci.getTime() + 5 * HOUR).toISOString() },
+      undefined,
+      now,
+    ) as Shift
+    expect(fixed.status).toBe('confirmed')
+    expect(new Date(fixed.checkOut!).getTime() - new Date(fixed.checkIn).getTime()).toBe(5 * HOUR)
+
+    // Already pending and auto-closed: same rule; rejecting needs no end time.
+    const s2 = insertShift(state, {
+      userId: randomUUID(),
+      kitchenId: kitchenA.id,
+      checkIn: new Date(now.getTime() - 10 * HOUR).toISOString(),
+      checkOut: new Date(now.getTime() - 2 * HOUR).toISOString(),
+      status: 'pending',
+      autoClosed: true,
+    })
+    const base2 = { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s2.id, supervisor: 'Maria' }
+    expect(errorCodeOf(() => handle(state, 'decide', { ...base2, decision: 'confirm' }, undefined, now))).toBe('needs_correction')
+    const rejected = handle(state, 'decide', { ...base2, decision: 'reject', reason: 'Not here' }, undefined, now) as Shift
+    expect(rejected).toMatchObject({ status: 'rejected', autoClosed: true })
+  })
+
   it('11. California date: a shift at 2026-11-01T06:30Z shows in kitchen_shifts(..., 2026-10-31) and not 2026-11-01; myShifts uses the same boundary', () => {
     const state = createMockState()
     const uid = randomUUID()

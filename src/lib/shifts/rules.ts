@@ -49,13 +49,17 @@ export function effectiveShift(s: Shift, now: Date): Shift {
 // own checkOut) is over MAX_CONFIRM_HOURS, or the correction is invalid
 // (at or before check-in). A still-open shift with no correction offered
 // has nothing to evaluate yet, so it doesn't need correction.
+//
+// The 10-hour limit is on the real elapsed time, not the rounded-down hours,
+// exactly as the SQL's `v_end - check_in > interval '10 hours'`: 10 h 05 min
+// needs correction even though it would count as 10.0 hours.
 export function needsCorrection(s: Shift, correctedCheckOut?: string): boolean {
   const checkOut = correctedCheckOut ?? s.checkOut
   if (checkOut == null) return false
   const checkInMs = new Date(s.checkIn).getTime()
   const checkOutMs = new Date(checkOut).getTime()
   if (checkOutMs <= checkInMs) return true
-  return durationHours(s.checkIn, checkOut) > MAX_CONFIRM_HOURS
+  return checkOutMs - checkInMs > MAX_CONFIRM_HOURS * 60 * 60 * 1000
 }
 
 // A shift's log date is the California calendar date of check-in.

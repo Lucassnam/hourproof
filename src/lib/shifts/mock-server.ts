@@ -403,6 +403,10 @@ function dispatch(state: MockState, op: MockOp, args: unknown, volunteerId: stri
       )
       if (!shift) throw new ShiftBackendError('not_found')
 
+      // Mirrors the SQL: an auto-closed shift can't be confirmed at its guessed 8h end
+      // without a corrected end time. Rejecting it needs none.
+      if (decision === 'confirm' && shift.autoClosed && checkOut == null) throw new ShiftBackendError('needs_correction')
+
       const endIso = checkOut ?? shift.checkOut ?? now.toISOString()
       const endMs = new Date(endIso).getTime()
       const checkInMs = new Date(shift.checkIn).getTime()

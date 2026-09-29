@@ -418,6 +418,30 @@ describe("ShiftCred migration (PGlite)", () => {
     expect(await errorOf(decide("kitchen-b", wrongPin("kitchen-b"), s5.id, "confirm"))).toBe("bad_pin");
   });
 
+  it("8b. decide: an auto-closed shift can't be confirmed without a corrected end time; rejecting it needs none", async () => {
+    await createKitchen("kitchen-a");
+    const pin = pinOf("kitchen-a");
+    // Open for 9 hours: decide_shift's own _auto_close closes it at 8h and marks it auto_closed.
+    const u1 = randomUUID();
+    const ci = new Date(Date.now() - 9 * HOUR);
+    const s1 = await insertShift(u1, "kitchen-a", ci.toISOString(), null, "open");
+    expect(await errorOf(decide("kitchen-a", pin, s1, "confirm"))).toBe("needs_correction");
+    // The refused call rolled back entirely (its own auto-close included).
+    const still = await db.query("select status, auto_closed from public.shifts where id = $1", [s1]);
+    expect(still.rows).toEqual([{ status: "open", auto_closed: false }]);
+    const fixed = await decide("kitchen-a", pin, s1, "confirm", { p_check_out: new Date(ci.getTime() + 5 * HOUR).toISOString() });
+    expect(fixed.status).toBe("confirmed");
+    expect(fixed.check_out!.getTime() - fixed.check_in.getTime()).toBe(5 * HOUR);
+
+    // Already pending and auto-closed (closed on an earlier read): same rule.
+    const u2 = randomUUID();
+    const s2 = await insertShift(u2, "kitchen-a", new Date(Date.now() - 10 * HOUR).toISOString(), null, "open");
+    await kitchenShifts("kitchen-a", pin, await caToday());
+    expect(await errorOf(decide("kitchen-a", pin, s2, "confirm"))).toBe("needs_correction");
+    const rejected = await decide("kitchen-a", pin, s2, "reject", { p_reason: "Didn't work this shift" });
+    expect(rejected).toMatchObject({ status: "rejected", auto_closed: true });
+  });
+
   it("9. RLS: users see only their own shifts; anon can't read kitchens or pin_attempts; no direct inserts", async () => {
     const a = await createKitchen("kitchen-a");
     const ua = randomUUID();

@@ -558,6 +558,13 @@ begin
     raise exception 'not_found';
   end if;
 
+  -- Never overclaim: a shift closed automatically at 8 hours (the volunteer never checked
+  -- out) can't be confirmed at that guessed end time; the supervisor must give the real one.
+  -- Rejecting it needs no end time.
+  if p_decision = 'confirm' and v_shift.auto_closed and p_check_out is null then
+    raise exception 'needs_correction';
+  end if;
+
   v_end := coalesce(p_check_out, v_shift.check_out, now());
   if v_end < v_shift.check_in or v_end > now() then
     raise exception 'needs_correction';
