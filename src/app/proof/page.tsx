@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // A Server Component shell, like /log: entries and files are read from IndexedDB in the
-// browser. This page fills the CF 888 on-device; ShiftCred keeps its separate server form.
+// browser. This is the app's only proof flow, including on-device CF 888 preparation.
 export default async function ProofPage() {
   const [en, es] = await Promise.all([
     getTranslations({ locale: "en", namespace: "log" }),

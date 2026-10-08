@@ -18,9 +18,7 @@
     "trackHours": "Anote mis horas",
     "tryDemo": "Probar la demostración",
     "demoNeedsJs": "La demostración necesita que JavaScript esté activado en su navegador.",
-    "demoNeedsStorage": "La demostración necesita que su navegador permita guardar datos del sitio.",
-    "track": "Registrar mis horas",
-    "proof": "Organizar mis pruebas"
+    "demoNeedsStorage": "La demostración necesita que su navegador permita guardar datos del sitio."
   },
   "screener": {
     "questionOf": "Pregunta {n} de {total}",
@@ -192,8 +190,7 @@
       "adds": "Si la regla le aplica, necesita 80 horas al mes. El trabajo, el voluntariado y los programas de empleo se suman.",
       "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
       "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
-    },
-    "proofLink": "Sus comprobantes"
+    }
   },
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",
@@ -246,7 +243,6 @@
       "next": "Después: pida al representante de la organización que revise las horas, llene su parte y firme. Luego agregue una foto del formulario firmado en la sección de Voluntariado.",
       "close": "Cerrar"
     },
-    "backToLog": "Volver a su registro de horas",
     "savedOnPhone": "Sus archivos se guardan solo en este teléfono."
   }
 }

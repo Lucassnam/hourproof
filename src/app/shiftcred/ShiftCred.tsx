@@ -9,10 +9,9 @@ import { ToolNav } from "@/components/ui/ToolNav";
 import { SAMPLE_SHIFTS, SHIFT_DATA_NOTICE } from "@/lib/shiftcred/sample-data";
 import { loadShiftRecords, saveShiftRecords } from "@/lib/shiftcred/store";
 import type { Shift, ShiftRecord } from "@/lib/shiftcred/types";
+import { getMode, openStore } from "@/lib/hours/store";
 import { ShiftMap } from "./ShiftMap";
 import { KitchenPortal } from "./KitchenPortal";
-import { ProofForm } from "./ProofForm";
-import { loadActivities, saveActivities } from "@/lib/activities/store";
 
 type View = "find" | "detail" | "reserved" | "scan" | "supervisor" | "hours";
 const COPY = {
@@ -49,14 +48,13 @@ const COPY = {
     supervisorTitle: "Supervisor confirmation",
     supervisorBody: "Please check the volunteer’s shift before confirming.",
     confirm: "Confirm 4 hours",
+    confirming: "Saving verified hours…",
     verified: "Verified",
     verifiedHours: "verified volunteer hours",
-    goal: "of the 80-hour monthly goal",
-    proofTitle: "October hour statement",
-    proofBody: "Kitchen-confirmed shifts appear here with the organization, date, hours, and verifier.",
+    proofTitle: "Kitchen-confirmed hours",
+    proofBody: "Confirmed shifts are also saved in Hours. Use Documents to prepare proof for your county.",
     noHours: "No verified shifts yet.",
-    download: "Print or save statement",
-    countyNote: "This statement organizes your records. Your county decides what proof it accepts.",
+    saveError: "We couldn't add this shift to Hours. Please try again.",
     statusReserved: "Reserved",
     statusChecked: "Checked in",
     statusVerified: "Verified",
@@ -94,14 +92,13 @@ const COPY = {
     supervisorTitle: "Confirmación del supervisor",
     supervisorBody: "Revise el turno de la persona voluntaria antes de confirmar.",
     confirm: "Confirmar 4 horas",
+    confirming: "Guardando horas verificadas…",
     verified: "Verificado",
     verifiedHours: "horas de voluntariado verificadas",
-    goal: "de la meta mensual de 80 horas",
-    proofTitle: "Estado de horas de octubre",
-    proofBody: "Los turnos confirmados muestran la organización, fecha, horas y persona verificadora.",
+    proofTitle: "Horas confirmadas por la organización",
+    proofBody: "Los turnos confirmados también se guardan en Horas. Use Documentos para preparar comprobantes para su condado.",
     noHours: "Aún no hay turnos verificados.",
-    download: "Imprimir o guardar estado",
-    countyNote: "Este estado organiza sus registros. Su condado decide qué prueba acepta.",
+    saveError: "No pudimos agregar este turno a Horas. Inténtelo de nuevo.",
     statusReserved: "Reservado",
     statusChecked: "Llegada registrada",
     statusVerified: "Verificado",
@@ -139,6 +136,8 @@ export function ShiftCred() {
   const [audience, setAudience] = useState<"volunteer" | "kitchen">("volunteer");
   const [languageFilter, setLanguageFilter] = useState<"All" | "Spanish" | "Mandarin">("All");
   const [transitOnly, setTransitOnly] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => { setRecords(loadShiftRecords()); setReady(true); }, []);
   useEffect(() => { if (ready) saveShiftRecords(records); }, [records, ready]);
@@ -165,24 +164,29 @@ export function ShiftCred() {
     });
   }
 
-  function verifySelectedShift() {
-    updateRecord("verified");
-    const activityId = `shiftcred:${selected.id}`;
-    const current = loadActivities();
-    if (!current.some((entry) => entry.id === activityId)) {
-      saveActivities([...current, {
-        id: activityId,
+  async function verifySelectedShift() {
+    if (confirming) return;
+    setConfirming(true);
+    setSaveError("");
+    const verifiedAt = new Date().toISOString();
+    try {
+      const store = await openStore(getMode());
+      await store.put({
+        id: `shiftcred:${selected.id}`,
         date: selected.date,
         type: "volunteer",
-        title: selected.kitchen,
         hours: selected.hours,
-        grossEarnings: 0,
-        source: "shiftcred",
-        verified: true,
-        proofFileName: "Kitchen-confirmed ShiftCred record",
-      }]);
+        place: selected.kitchen,
+        note: `ShiftCred sample · Confirmed by ${selected.supervisor}`,
+        createdAt: verifiedAt,
+      });
+      updateRecord("verified");
+      go("hours");
+    } catch {
+      setSaveError(c.saveError);
+    } finally {
+      setConfirming(false);
     }
-    go("hours");
   }
 
   function openShift(shift: Shift) { setSelectedId(shift.id); setView("detail"); window.scrollTo(0, 0); }
@@ -250,9 +254,9 @@ export function ShiftCred() {
 
         {view === "scan" && <section className="flex flex-col gap-5 text-center"><div className="mx-auto flex size-28 items-center justify-center rounded-3xl border-4 border-proof bg-surface text-proof"><svg aria-label="Sample QR code" viewBox="0 0 21 21" className="size-20 fill-current"><path d="M1 1h7v7H1zm2 2v3h3V3zm10-2h7v7h-7zm2 2v3h3V3zM1 13h7v7H1zm2 2v3h3v-3zm7-14h2v3h-2zm0 5h2v4h3v2h-5zm7 4h3v2h-3zm-7 3h3v2h2v-2h2v5h-3v-2h-4zm8 1h2v6h-2z"/></svg></div><div><h1 className="font-display text-3xl font-bold">{record?.status === "checked-in" ? c.checkedIn : c.scanTitle}</h1><p className="mt-3 text-lg text-text-muted">{record?.status === "checked-in" ? c.checkedBody : c.scanBody}</p></div><div className="rounded-2xl bg-surface-2 p-4 text-left"><p className="flex gap-3"><Icon name="shield"/><span>{c.privacy}</span></p></div>{record?.status === "checked-in" ? <button onClick={() => go("supervisor")} className="min-h-14 rounded-2xl border-2 border-border bg-proof px-6 text-lg font-bold text-white">{c.finish}</button> : <button onClick={() => updateRecord("checked-in")} className="min-h-14 rounded-2xl border-2 border-border bg-proof px-6 text-lg font-bold text-white"><span className="flex items-center justify-center gap-2"><Icon name="qr"/>{c.scanButton}</span></button>}</section>}
 
-        {view === "supervisor" && <section className="flex flex-col gap-5"><div className="text-center"><p className="text-sm font-bold uppercase tracking-[.15em] text-signal">ShiftCred · {c.demo}</p><h1 className="mt-3 font-display text-3xl font-bold">{c.supervisorTitle}</h1><p className="mt-2 text-text-muted">{c.supervisorBody}</p></div><div className="rounded-3xl border border-border/45 bg-surface p-5"><p className="text-text-muted">Volunteer</p><p className="font-display text-xl font-bold">Demo volunteer</p><hr className="my-4 border-border/30"/><p className="font-bold">{selected.role}</p><p className="mt-1 text-text-muted">{selected.kitchen}</p><div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-surface-2 p-3"><p className="text-sm text-text-muted">Check in</p><p className="font-bold">{selected.startTime}</p></div><div className="rounded-2xl bg-surface-2 p-3"><p className="text-sm text-text-muted">Check out</p><p className="font-bold">{selected.endTime}</p></div></div></div><button onClick={verifySelectedShift} className="min-h-14 rounded-2xl border-2 border-border bg-signal px-6 text-lg font-bold text-white">{c.confirm}</button></section>}
+        {view === "supervisor" && <section className="flex flex-col gap-5"><div className="text-center"><p className="text-sm font-bold uppercase tracking-[.15em] text-signal">ShiftCred · {c.demo}</p><h1 className="mt-3 font-display text-3xl font-bold">{c.supervisorTitle}</h1><p className="mt-2 text-text-muted">{c.supervisorBody}</p></div><div className="rounded-3xl border border-border/45 bg-surface p-5"><p className="text-text-muted">Volunteer</p><p className="font-display text-xl font-bold">Demo volunteer</p><hr className="my-4 border-border/30"/><p className="font-bold">{selected.role}</p><p className="mt-1 text-text-muted">{selected.kitchen}</p><div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-surface-2 p-3"><p className="text-sm text-text-muted">Check in</p><p className="font-bold">{selected.startTime}</p></div><div className="rounded-2xl bg-surface-2 p-3"><p className="text-sm text-text-muted">Check out</p><p className="font-bold">{selected.endTime}</p></div></div></div><p role="alert" className="text-center font-semibold text-danger empty:hidden">{saveError}</p><button onClick={verifySelectedShift} disabled={confirming} className="min-h-14 rounded-2xl border-2 border-border bg-signal px-6 text-lg font-bold text-white disabled:opacity-60">{confirming ? c.confirming : c.confirm}</button></section>}
 
-        {view === "hours" && <><div className="print:hidden">{nav}</div><section className="rounded-3xl bg-proof p-6 text-white"><p className="text-sm font-bold uppercase tracking-[.16em] opacity-85">ShiftCred · October 2026</p><div className="mt-4 flex items-end gap-2"><strong className="font-display text-6xl">{verifiedHours}</strong><span className="pb-2 text-lg">{c.verifiedHours}</span></div><div className="mt-5 h-3 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-white" style={{ width: `${Math.min(100, verifiedHours / 80 * 100)}%` }}/></div><p className="mt-2 text-sm text-white/85">{verifiedHours} {c.goal}</p></section><section className="rounded-3xl bg-surface p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-proof">ShiftCred verified ledger</p><h1 className="mt-1 font-display text-2xl font-bold">{c.proofTitle}</h1></div><div className="rounded-full bg-proof/10 px-3 py-1 font-bold text-proof">Digitally confirmed</div></div><p className="mt-2 text-text-muted">{c.proofBody}</p><div className="mt-5 flex flex-col gap-3">{verified.length === 0 ? <p className="rounded-2xl bg-surface-2 p-4">{c.noHours}</p> : verified.map((item) => { const shift = SAMPLE_SHIFTS.find((s) => s.id === item.shiftId); if (!shift) return null; return <article key={item.shiftId} className="rounded-2xl border border-border/40 p-4"><div className="flex justify-between gap-4"><div><p className="font-bold">{shift.role}</p><p className="text-text-muted">{shift.kitchen}</p></div><strong className="text-xl text-proof">{shift.hours} hrs</strong></div><p className="mt-3 text-sm text-text-muted">{shift.dateLabel} · {shift.time}</p><p className="mt-2 flex items-center gap-2 font-semibold text-proof"><Icon name="check"/>{c.verified} · {shift.supervisor}</p><p className="mt-1 text-xs text-text-muted">Check-in and check-out confirmed · No GPS collected</p></article>; })}</div></section><p className="text-sm text-text-muted">{c.countyNote}</p>{verifiedHours > 0 && <ProofForm defaults={{ organization: "Sample Community Kitchen", representative: "Sample supervisor", organizationAddress: "748 Mercy Street, Mountain View, CA 94041", phone: "(650) 555-0142", month: "October 2026", hours: verifiedHours }}/>}<button onClick={() => window.print()} className="min-h-14 rounded-2xl border-2 border-border bg-surface-2 px-6 text-lg font-bold print:hidden">{c.download}</button></>}
+        {view === "hours" && <><div className="print:hidden">{nav}</div><section className="rounded-2xl border-2 border-border bg-surface p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-proof">ShiftCred</p><h1 className="mt-1 font-display text-2xl font-bold">{c.proofTitle}</h1></div><div className="shrink-0 rounded-full bg-proof/10 px-3 py-1 font-bold text-proof">{verifiedHours} {c.verifiedHours}</div></div><p className="mt-2 leading-relaxed text-text-muted">{c.proofBody}</p><div className="mt-4 flex flex-col gap-3">{verified.length === 0 ? <p className="rounded-2xl bg-surface-2 p-4">{c.noHours}</p> : verified.map((item) => { const shift = SAMPLE_SHIFTS.find((s) => s.id === item.shiftId); if (!shift) return null; return <article key={item.shiftId} className="rounded-2xl border border-border/40 p-4"><div className="flex justify-between gap-4"><div><p className="font-bold">{shift.role}</p><p className="text-text-muted">{shift.kitchen}</p></div><strong className="text-xl text-proof">{shift.hours} hrs</strong></div><p className="mt-3 text-sm text-text-muted">{shift.dateLabel} · {shift.time}</p><p className="mt-2 flex items-center gap-2 font-semibold text-proof"><Icon name="check"/>{c.verified} · {shift.supervisor}</p><p className="mt-1 text-xs text-text-muted">Check-in and check-out confirmed · No GPS collected</p></article>; })}</div></section></>}
         </>}
       </main>
     </div>

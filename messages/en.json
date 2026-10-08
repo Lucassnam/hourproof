@@ -18,9 +18,7 @@
     "trackHours": "Track my hours",
     "tryDemo": "Try the demo",
     "demoNeedsJs": "The demo needs JavaScript turned on in your browser.",
-    "demoNeedsStorage": "The demo needs your browser to allow site storage.",
-    "track": "Track my hours",
-    "proof": "Organize my proof"
+    "demoNeedsStorage": "The demo needs your browser to allow site storage."
   },
   "screener": {
     "questionOf": "Question {n} of {total}",
@@ -192,8 +190,7 @@
       "adds": "If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up.",
       "jobSearch": "Job search counts only as part of a job program. Workfare is checked differently by your county.",
       "report": "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days."
-    },
-    "proofLink": "Your proof documents"
+    }
   },
   "demo": {
     "banner": "Demo — sample data, not yours.",
@@ -246,7 +243,6 @@
       "next": "Next: ask the organization's representative to check the hours, fill in their part and sign. Then add a photo of the signed form in the Volunteering box.",
       "close": "Close"
     },
-    "backToLog": "Back to your hour log",
     "savedOnPhone": "Your files are saved only on this phone."
   }
 }

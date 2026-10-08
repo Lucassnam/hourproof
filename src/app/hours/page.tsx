@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { HoursDashboard } from "./HoursDashboard";
-
-export const metadata: Metadata = {
-  title: "My 80 Hours | HourProof",
-  description: "Track paid work, volunteering, school, and training for CalFresh.",
-};
+import { permanentRedirect } from "next/navigation";
 
 export default function HoursPage() {
-  return <HoursDashboard />;
+  // Keep old bookmarks and shared links working while the app uses one hour tracker.
+  permanentRedirect("/log");
 }
-

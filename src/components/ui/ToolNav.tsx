@@ -11,7 +11,7 @@ const LABELS = {
 } as const;
 
 const ITEMS: Array<{ key: Tool; href: string }> = [
-  { key: "hours", href: "/hours" },
+  { key: "hours", href: "/log" },
   { key: "proof", href: "/proof" },
   { key: "shiftcred", href: "/shiftcred" },
 ];

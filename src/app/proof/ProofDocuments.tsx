@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Screen } from "@/components/ui/Screen";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { MonthButton } from "@/components/ui/MonthButton";
+import { ToolNav } from "@/components/ui/ToolNav";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore } from "@/lib/hours/store";
 import type { ActivityType, Entry } from "@/lib/hours/types";
@@ -19,7 +20,7 @@ import { Cf888Form } from "./Cf888Form";
 
 type Loaded = { entries: Entry[]; files: ProofStore };
 
-const BLANK_CF888 = "https://cdss.ca.gov/Portals/9/Additional-Resources/Forms-and-Brochures/2020/A-D/CF888.pdf";
+const BLANK_CF888 = "/forms/cf888-template.pdf";
 
 export function ProofDocuments() {
   const t = useTranslations("proof");
@@ -105,6 +106,7 @@ export function ProofDocuments() {
 
   return (
     <Screen banner={<DemoBanner />}>
+      <ToolNav current="proof" />
       <h1 className="font-display text-3xl font-semibold">{t("title")}</h1>
       <p className="-mt-2 text-lg leading-snug text-text-muted">{t("intro")}</p>
 
@@ -229,9 +231,6 @@ export function ProofDocuments() {
 
       <footer className="mt-2 flex flex-col gap-3 border-t-2 border-border pt-4">
         <p className="text-lg text-text-muted">{t("savedOnPhone")}</p>
-        <a href="/log" className="flex min-h-12 items-center self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4">
-          {t("backToLog")}
-        </a>
       </footer>
     </Screen>
   );

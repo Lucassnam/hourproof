@@ -34,7 +34,7 @@ test("proof: a box per logged activity, files stay listed, and the CF 888 is fil
   await addHours(page, { type: /^Volunteering/, hours: "2.5", place: "food bank" });
   await addHours(page, { type: /^Paid work/, hours: "8" });
 
-  await page.getByRole("link", { name: "Your proof documents" }).click();
+  await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(page).toHaveURL(/\/proof$/);
   await expect(page.getByRole("heading", { level: 1, name: "Your proof" })).toBeVisible();
 

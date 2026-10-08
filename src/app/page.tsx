@@ -47,8 +47,7 @@ export default async function Home() {
         <h1 className="font-display text-3xl font-semibold">{ht("title")}</h1>
         <p className="text-lg text-text-muted">{ht("subtitle")}</p>
 
-        {/* Three entry points, in order of what most people need: check the rule first,
-            track hours if that's already settled, or see the whole story with sample data. */}
+        {/* One route per task: check the rule, track hours, or try the sample flow. */}
         <div className="flex flex-col gap-3">
           <Link href="/screener" className={buttonClasses({ variant: "strong", size: "lg", fullWidth: true })}>
             {ht("cta")}
@@ -57,10 +56,6 @@ export default async function Home() {
             {ht("trackHours")}
           </Link>
           <TryDemoButton />
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/hours" className={buttonClasses({ variant: "ghost", fullWidth: true })}>{ht("track")}</Link>
-            <Link href="/proof" className={buttonClasses({ variant: "ghost", fullWidth: true })}>{ht("proof")}</Link>
-          </div>
         </div>
       </Screen>
     </>

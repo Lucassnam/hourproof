@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Screen } from "@/components/ui/Screen";
 import { MonthButton } from "@/components/ui/MonthButton";
 import { DemoBanner } from "@/components/ui/DemoBanner";
+import { ToolNav } from "@/components/ui/ToolNav";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore, type EntryStore } from "@/lib/hours/store";
 import { summarizeMonth } from "@/lib/hours/summarize";
@@ -148,6 +149,7 @@ export function HourLog() {
   if (view !== "list" && loaded && (view === "add" || editing)) {
     return (
       <Screen banner={<DemoBanner />}>
+        <ToolNav current="hours" />
         <EntryForm
           key={editing?.id ?? "new"}
           store={loaded.store}
@@ -185,6 +187,7 @@ export function HourLog() {
 
   return (
     <Screen banner={<DemoBanner />}>
+      <ToolNav current="hours" />
       <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-semibold outline-none">
         {t("title")}
       </h1>
@@ -352,9 +355,6 @@ export function HourLog() {
           <span>{t("savedOnPhone")}</span>
         </p>
         {/* A plain link: /screener is a different route with its own server render. */}
-        <a href="/proof" className="self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4 min-h-12 flex items-center">
-          {t("proofLink")}
-        </a>
         <a href="/screener" className="self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4 min-h-12 flex items-center">
           {t("checkRule")}
         </a>

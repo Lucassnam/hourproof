@@ -1,6 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("recipient can reserve, check in, get confirmed, and see proof", async ({ page }) => {
+async function reachApplicableResult(page: Page) {
+  for (let i = 0; i < 10; i++) {
+    if (await page.getByRole("link", { name: "Start tracking my hours" }).isVisible().catch(() => false)) return;
+    const none = page.getByRole("button", { name: "None of these apply" });
+    if (await none.isVisible().catch(() => false)) await none.click();
+    else await page.getByRole("button", { name: "No", exact: true }).click();
+  }
+}
+
+test("recipient can reserve, check in, and add confirmed hours to the shared tracker", async ({ page }) => {
   await page.goto("/shiftcred");
 
   const toolNav = page.getByRole("navigation", { name: "HourProof tools" });
@@ -20,27 +29,20 @@ test("recipient can reserve, check in, get confirmed, and see proof", async ({ p
   await page.getByRole("button", { name: /Simulate end of shift/i }).click();
   await page.getByRole("button", { name: "Confirm 4 hours" }).click();
 
-  await expect(page.locator("strong").filter({ hasText: /^4$/ })).toBeVisible();
+  await expect(page.getByText("4 hrs", { exact: true })).toBeVisible();
   await expect(page.getByText("verified volunteer hours")).toBeVisible();
   await expect(page.getByText(/Sample supervisor/)).toBeVisible();
+  await expect(page.getByText(/also saved in Hours/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Prepare official CF 888" }).click();
-  await page.getByLabel("Full legal name").fill("Demo Volunteer");
-  await page.getByLabel("Birthdate").fill("1990-01-02");
-  await page.getByLabel("Street address").fill("123 Sample Street");
-  await page.getByLabel("City, state, ZIP").fill("Mountain View, CA 94041");
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Download filled CF 888/i }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("CF-888-volunteer-hours-filled.pdf");
+  await toolNav.getByRole("link", { name: "Hours" }).click();
+  await expect(page).toHaveURL(/\/log$/);
+  await expect(page.getByText("Sample Community Kitchen")).toBeVisible();
+  await expect(page.getByText("4 hours", { exact: true })).toBeVisible();
 });
 
 test("ShiftCred appears after the screener says the rule applies", async ({ page }) => {
   await page.goto("/screener");
-  for (let i = 0; i < 25; i++) {
-    if (await page.getByRole("link", { name: "Open My 80 Hours" }).isVisible().catch(() => false)) break;
-    await page.getByRole("button", { name: "No", exact: true }).click();
-  }
+  await reachApplicableResult(page);
   await expect(page.getByRole("link", { name: "Find a volunteer shift" })).toBeVisible();
 });
 
