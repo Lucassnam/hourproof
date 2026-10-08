@@ -66,7 +66,7 @@ test("1. empty state, then 4 hours of volunteering today shows 4 of 80 and the e
   await expect(
     page.getByText("If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up."),
   ).toBeVisible();
-  await page.getByRole("button", { name: "About your hour log" }).click();
+  await page.getByRole("button", { name: "Close information", exact: true }).click();
   await expect(tenDays).toBeHidden();
   await expect(page.getByRole("link", { name: "Check if the rule applies to you" })).toHaveAttribute("href", "/screener");
 

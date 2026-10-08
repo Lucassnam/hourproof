@@ -20,6 +20,7 @@ test("recipient can reserve, check in, and add confirmed hours to the shared tra
   await expect(page.getByText(/Reserve a shift, check in/)).toBeHidden();
   await page.getByRole("button", { name: "How ShiftCred works" }).click();
   await expect(page.getByText(/Reserve a shift, check in/)).toBeVisible();
+  await page.getByRole("button", { name: "Close information", exact: true }).click();
 
   await page.getByRole("button", { name: /View shift/i }).first().click();
   await page.getByRole("button", { name: "Reserve this shift" }).click();
@@ -37,6 +38,7 @@ test("recipient can reserve, check in, and add confirmed hours to the shared tra
   await expect(page.getByText(/also saved in Hours/)).toBeHidden();
   await page.getByRole("button", { name: "About verified hours" }).click();
   await expect(page.getByText(/also saved in Hours/)).toBeVisible();
+  await page.getByRole("button", { name: "Close information", exact: true }).click();
 
   await toolNav.getByRole("link", { name: "Hours" }).click();
   await expect(page).toHaveURL(/\/log$/);
