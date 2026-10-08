@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Screen } from "@/components/ui/Screen";
+import { MonthButton } from "@/components/ui/MonthButton";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore, type EntryStore } from "@/lib/hours/store";
@@ -351,6 +352,9 @@ export function HourLog() {
           <span>{t("savedOnPhone")}</span>
         </p>
         {/* A plain link: /screener is a different route with its own server render. */}
+        <a href="/proof" className="self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4 min-h-12 flex items-center">
+          {t("proofLink")}
+        </a>
         <a href="/screener" className="self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4 min-h-12 flex items-center">
           {t("checkRule")}
         </a>
@@ -402,32 +406,6 @@ function groupByDate(entries: Entry[]): [string, Entry[]][] {
     groups.set(entry.date, list);
   }
   return Array.from(groups.entries()).sort(([a], [b]) => (a < b ? 1 : -1));
-}
-
-function MonthButton({
-  label,
-  direction,
-  disabled = false,
-  onClick,
-}: {
-  label: string;
-  direction: "prev" | "next";
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex min-h-12 min-w-12 items-center justify-center rounded-full border-2 border-border bg-surface-2 text-text disabled:border-dashed disabled:bg-transparent disabled:text-text-muted disabled:opacity-60"
-    >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {direction === "prev" ? <path d="M15 5l-7 7 7 7" /> : <path d="M9 5l7 7-7 7" />}
-      </svg>
-    </button>
-  );
 }
 
 function LockIcon() {
