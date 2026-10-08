@@ -72,6 +72,9 @@ test("documents page has one clear navigation path when there are no hours", asy
   await page.goto("/proof");
 
   await expect(page.getByRole("heading", { name: "Your proof" })).toBeVisible();
+  await expect(page.getByText(/Keep photos and PDF files/)).toBeHidden();
+  await page.getByRole("button", { name: "About proof documents" }).click();
+  await expect(page.getByText(/Keep photos and PDF files/)).toBeVisible();
   const toolNav = page.getByRole("navigation", { name: "HourProof tools" });
   await expect(toolNav.getByRole("link")).toHaveCount(3);
   await expect(toolNav.getByRole("link", { name: "Documents" })).toHaveAttribute("aria-current", "page");

@@ -50,23 +50,24 @@ function monthName(locale: string, month: string) {
 test("1. empty state, then 4 hours of volunteering today shows 4 of 80 and the entry", async ({ page }) => {
   await gotoLog(page);
   await expect(page.getByTestId("empty")).toContainText("No hours saved for this month yet.");
-  await expect(page.getByTestId("empty")).toContainText("paid work, volunteering, and job training programs");
+  await expect(page.getByTestId("empty")).not.toContainText("paid work, volunteering, and job training programs");
   await expect(ring(page)).toHaveAttribute("aria-label", "0 of 80 hours this month");
   await expect(page.getByTestId("pace")).toHaveText("No hours yet this month.");
-  await expect(page.getByText("Your hours are saved only on this phone.")).toBeVisible();
-  // M3: the quiet offline line is always there, not only when the phone is offline.
-  await expect(page.getByTestId("offline-note")).toHaveText("Your hours stay saved on this phone, even without signal.");
-  // "How the rule works" is collapsed; the 10-day report line lives only inside it.
+  // Secondary explanations stay hidden until the small information control is opened.
+  await expect(page.getByTestId("offline-note")).toBeHidden();
   const tenDays = page.getByText(
     "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days.",
   );
   await expect(tenDays).toBeHidden();
-  await page.getByText("How the rule works", { exact: true }).click();
+  await page.getByRole("button", { name: "About your hour log" }).click();
+  await expect(page.getByTestId("offline-note")).toHaveText("Your hours stay saved on this phone, even without signal.");
+  await expect(page.getByTestId("offline-note")).toBeVisible();
   await expect(tenDays).toBeVisible();
   await expect(
     page.getByText("If the rule applies to you, you need 80 hours a month. Work, volunteering and job programs add up."),
   ).toBeVisible();
-  await page.getByText("How the rule works", { exact: true }).click();
+  await page.getByRole("button", { name: "About your hour log" }).click();
+  await expect(tenDays).toBeHidden();
   await expect(page.getByRole("link", { name: "Check if the rule applies to you" })).toHaveAttribute("href", "/screener");
 
   await addButton(page).click();
@@ -228,7 +229,10 @@ test("6. Spanish: ring label and pace line are in Spanish, with no English on th
   await expect(page.getByTestId("pace")).toHaveText(
     /^(Va bien\. A este ritmo llegará a [\d.,]+ horas\.|Para llegar a 80 este mes: [\d.,]+ horas? más( en \d+ días?, unas [\d.,]+ al día\.|\. Hoy es el último día del mes\.))$/,
   );
+  await expect(page.getByTestId("offline-note")).toBeHidden();
+  await page.getByRole("button", { name: "Acerca de su registro de horas" }).click();
   await expect(page.getByTestId("offline-note")).toHaveText("Sus horas quedan guardadas en este teléfono, aunque no tenga señal.");
+  await expect(page.getByTestId("offline-note")).toBeVisible();
   const text = await page.innerText("body");
   expect(text).not.toMatch(/\b(hours|Add|Save|Edit|month|Your|Paid|Loading)\b/);
 });

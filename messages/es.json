@@ -87,6 +87,7 @@
   },
   "log": {
     "title": "Sus horas",
+    "infoLabel": "Acerca de su registro de horas",
     "prevMonth": "Mes anterior",
     "nextMonth": "Mes siguiente",
     "pastMonth": "Mes pasado",
@@ -129,7 +130,6 @@
     "notCounted": "No cuenta",
     "saved": "Guardado.",
     "deleted": "Borrado.",
-    "savedOnPhone": "Sus horas se guardan solo en este teléfono.",
     "offline": "Sus horas quedan guardadas en este teléfono, aunque no tenga señal.",
     "checkRule": "Vea si la regla le aplica",
     "types": {
@@ -198,6 +198,7 @@
   },
   "proof": {
     "title": "Sus comprobantes",
+    "infoLabel": "Acerca de sus comprobantes",
     "intro": "Guarde fotos y archivos PDF que muestren sus horas, en una sección para cada tipo de actividad. Cuando su condado pida comprobantes, usted mismo los envía o los lleva.",
     "anyProof": "Su condado no puede exigir un solo tipo de comprobante. Talones de pago, registros de asistencia a un programa y cartas firmadas son ejemplos.",
     "prevMonth": "Mes anterior",
@@ -222,6 +223,7 @@
       "save": "No se agregó {name}. Puede que este teléfono no tenga espacio."
     },
     "cf888": {
+      "infoLabel": "Acerca del formulario CF 888",
       "why": "Las horas de voluntariado se tienen que verificar. Una forma es el formulario CF 888 de California, firmado por alguien de la organización.",
       "fill": "Llenar un CF 888 para {place}",
       "fillUnnamed": "Llenar un CF 888",

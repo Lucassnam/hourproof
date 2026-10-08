@@ -17,6 +17,9 @@ test("recipient can reserve, check in, and add confirmed hours to the shared tra
   await expect(page.getByRole("link", { name: "Volunteer", exact: true })).toHaveCount(1);
   await expect(page.getByRole("heading", { name: /Volunteer nearby/i })).toBeVisible();
   await expect(page.getByText(/sample data/i)).toBeVisible();
+  await expect(page.getByText(/Reserve a shift, check in/)).toBeHidden();
+  await page.getByRole("button", { name: "How ShiftCred works" }).click();
+  await expect(page.getByText(/Reserve a shift, check in/)).toBeVisible();
 
   await page.getByRole("button", { name: /View shift/i }).first().click();
   await page.getByRole("button", { name: "Reserve this shift" }).click();
@@ -29,9 +32,10 @@ test("recipient can reserve, check in, and add confirmed hours to the shared tra
   await page.getByRole("button", { name: /Simulate end of shift/i }).click();
   await page.getByRole("button", { name: "Confirm 4 hours" }).click();
 
-  await expect(page.getByText("4 hrs", { exact: true })).toBeVisible();
-  await expect(page.getByText("verified volunteer hours")).toBeVisible();
+  await expect(page.getByText("4 hrs", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/Sample supervisor/)).toBeVisible();
+  await expect(page.getByText(/also saved in Hours/)).toBeHidden();
+  await page.getByRole("button", { name: "About verified hours" }).click();
   await expect(page.getByText(/also saved in Hours/)).toBeVisible();
 
   await toolNav.getByRole("link", { name: "Hours" }).click();

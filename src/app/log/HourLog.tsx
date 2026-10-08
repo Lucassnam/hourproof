@@ -7,6 +7,7 @@ import { Screen } from "@/components/ui/Screen";
 import { MonthButton } from "@/components/ui/MonthButton";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { ToolNav } from "@/components/ui/ToolNav";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore, type EntryStore } from "@/lib/hours/store";
 import { summarizeMonth } from "@/lib/hours/summarize";
@@ -188,9 +189,25 @@ export function HourLog() {
   return (
     <Screen banner={<DemoBanner />}>
       <ToolNav current="hours" />
-      <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-semibold outline-none">
-        {t("title")}
-      </h1>
+      <div className="flex items-center gap-1">
+        <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-semibold outline-none">
+          {t("title")}
+        </h1>
+        <InfoTip label={t("infoLabel")} testId="hours-info">
+          <div className="flex flex-col gap-3">
+            <p data-testid="offline-note">{t("offline")}</p>
+            <p>{t("emptyWhat")}</p>
+            <div>
+              <p className="font-semibold">{t("rule.title")}</p>
+              <ul className="mt-2 flex list-disc flex-col gap-2 pl-5">
+                <li>{t("rule.adds")}</li>
+                <li>{t("rule.jobSearch")}</li>
+                <li>{t("rule.report")}</li>
+              </ul>
+            </div>
+          </div>
+        </InfoTip>
+      </div>
 
       {/* At 200% zoom (180px wide) the month name gets its own row above the two buttons. */}
       <nav aria-label={monthName} className="-mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -268,11 +285,6 @@ export function HourLog() {
           >
             {t("addHours")}
           </button>
-          {/* Quiet reassurance for patchy signal: saving never needs the network. Not shown
-              when this browser can't open the store (the error above says so instead). */}
-          <p className="-mt-3 text-center text-lg text-text-muted" data-testid="offline-note">
-            {t("offline")}
-          </p>
 
           {loaded && (
             <section aria-labelledby="log-list" className="flex flex-col gap-4">
@@ -280,9 +292,8 @@ export function HourLog() {
                 {t("listTitle")}
               </h2>
               {groups.length === 0 ? (
-                <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4" data-testid="empty">
+                <div className="rounded-2xl bg-surface-2 p-4" data-testid="empty">
                   <p className="text-lg font-semibold">{t("empty")}</p>
-                  <p className="text-lg leading-snug text-text-muted">{t("emptyWhat")}</p>
                 </div>
               ) : (
                 groups.map(([date, dayEntries]) => (
@@ -333,32 +344,9 @@ export function HourLog() {
         </>
       )}
 
-      {/* Neutral background, collapsed by default: the rule's basics, including the 10-day
-          report, without the log claiming it knows the person is behind or screened. */}
-      <details className="group rounded-2xl border-2 border-border bg-surface">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-lg font-semibold [&::-webkit-details-marker]:hidden">
-          <span>{t("rule.title")}</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 group-open:rotate-180 motion-safe:transition-transform">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </summary>
-        <ul className="flex list-disc flex-col gap-2 pr-4 pb-4 pl-10">
-          <li className="text-lg leading-snug">{t("rule.adds")}</li>
-          <li className="text-lg leading-snug">{t("rule.jobSearch")}</li>
-          <li className="text-lg leading-snug">{t("rule.report")}</li>
-        </ul>
-      </details>
-
-      <footer className="mt-2 flex flex-col gap-3 border-t-2 border-border pt-4">
-        <p className="flex items-start gap-2 text-lg text-text-muted">
-          <LockIcon />
-          <span>{t("savedOnPhone")}</span>
-        </p>
-        {/* A plain link: /screener is a different route with its own server render. */}
-        <a href="/screener" className="self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4 min-h-12 flex items-center">
-          {t("checkRule")}
-        </a>
-      </footer>
+      <a href="/screener" className="flex min-h-12 items-center self-start text-base font-semibold text-signal underline decoration-2 underline-offset-4">
+        {t("checkRule")}
+      </a>
     </Screen>
   );
 }
@@ -406,13 +394,4 @@ function groupByDate(entries: Entry[]): [string, Entry[]][] {
     groups.set(entry.date, list);
   }
   return Array.from(groups.entries()).sort(([a], [b]) => (a < b ? 1 : -1));
-}
-
-function LockIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
-      <rect x="5" y="11" width="14" height="10" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
 }

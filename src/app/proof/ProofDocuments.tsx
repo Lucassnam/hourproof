@@ -6,6 +6,7 @@ import { Screen } from "@/components/ui/Screen";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { MonthButton } from "@/components/ui/MonthButton";
 import { ToolNav } from "@/components/ui/ToolNav";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore } from "@/lib/hours/store";
 import type { ActivityType, Entry } from "@/lib/hours/types";
@@ -107,8 +108,16 @@ export function ProofDocuments() {
   return (
     <Screen banner={<DemoBanner />}>
       <ToolNav current="proof" />
-      <h1 className="font-display text-3xl font-semibold">{t("title")}</h1>
-      <p className="-mt-2 text-lg leading-snug text-text-muted">{t("intro")}</p>
+      <div className="flex items-center gap-1">
+        <h1 className="font-display text-3xl font-semibold">{t("title")}</h1>
+        <InfoTip label={t("infoLabel")} testId="proof-info">
+          <div className="flex flex-col gap-3">
+            <p>{t("intro")}</p>
+            <p>{t("anyProof")}</p>
+            <p>{t("savedOnPhone")}</p>
+          </div>
+        </InfoTip>
+      </div>
 
       <nav aria-label={monthName} className="flex flex-wrap items-center justify-between gap-2">
         <MonthButton label={t("prevMonth")} direction="prev" onClick={() => changeMonth(addMonths(month, -1))} />
@@ -153,22 +162,30 @@ export function ProofDocuments() {
               data-testid={`proof-${type}`}
               className="flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-border bg-surface p-4"
             >
-              <div>
-                <h2 id={`proof-${type}`} className="font-display text-xl font-semibold">
-                  {typeLabel}
-                </h2>
-                <p className="text-lg tabular-nums text-text-muted">{t("logged", { hours: hoursText(hours) })}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 id={`proof-${type}`} className="font-display text-xl font-semibold">
+                    {typeLabel}
+                  </h2>
+                  <p className="text-lg tabular-nums text-text-muted">{t("logged", { hours: hoursText(hours) })}</p>
+                </div>
+                {type === "volunteer" && (
+                  <InfoTip label={t("cf888.infoLabel")} testId="cf888-info">
+                    <div className="flex flex-col gap-3">
+                      <p>{t("cf888.why")}</p>
+                      <a href={BLANK_CF888} target="_blank" rel="noopener" className="font-semibold text-signal underline decoration-2 underline-offset-4">
+                        {t("cf888.blank")}
+                      </a>
+                    </div>
+                  </InfoTip>
+                )}
               </div>
 
               {type === "volunteer" && (
                 <div className="flex flex-col gap-3">
-                  <p className="text-lg leading-snug">{t("cf888.why")}</p>
                   {places.map((p) => (
                     <Cf888Form key={p.place || "-"} place={p.place} hours={p.hours} month={month} />
                   ))}
-                  <a href={BLANK_CF888} target="_blank" rel="noopener" className="flex min-h-12 items-center self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4">
-                    {t("cf888.blank")}
-                  </a>
                 </div>
               )}
 
@@ -227,11 +244,6 @@ export function ProofDocuments() {
           );
         })}
 
-      {loaded && groups.length > 0 && <p className="text-lg leading-snug text-text-muted">{t("anyProof")}</p>}
-
-      <footer className="mt-2 flex flex-col gap-3 border-t-2 border-border pt-4">
-        <p className="text-lg text-text-muted">{t("savedOnPhone")}</p>
-      </footer>
     </Screen>
   );
 }

@@ -37,8 +37,9 @@ test("M11: no horizontal scroll at 180px on /, the screener checklist and /log (
     await page.goto("/log");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("button", { name: lang === "en" ? "Add hours" : "Agregar horas", exact: true })).toBeEnabled();
-    await page.getByText(lang === "en" ? "How the rule works" : "Cómo funciona la regla", { exact: true }).click();
+    await page.getByRole("button", { name: lang === "en" ? "About your hour log" : "Acerca de su registro de horas" }).click();
     await expectNoSideScroll(page, `${lang} /log`);
+    await page.getByRole("button", { name: lang === "en" ? "About your hour log" : "Acerca de su registro de horas" }).click();
     await page.getByRole("button", { name: lang === "en" ? "Previous month" : "Mes anterior" }).click();
     await expectNoSideScroll(page, `${lang} /log past month`);
   }

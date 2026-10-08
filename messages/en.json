@@ -87,6 +87,7 @@
   },
   "log": {
     "title": "Your hours",
+    "infoLabel": "About your hour log",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "pastMonth": "Past month",
@@ -129,7 +130,6 @@
     "notCounted": "Doesn't count",
     "saved": "Saved.",
     "deleted": "Deleted.",
-    "savedOnPhone": "Your hours are saved only on this phone.",
     "offline": "Your hours stay saved on this phone, even without signal.",
     "checkRule": "Check if the rule applies to you",
     "types": {
@@ -198,6 +198,7 @@
   },
   "proof": {
     "title": "Your proof",
+    "infoLabel": "About proof documents",
     "intro": "Keep photos and PDF files that show your hours, one box for each kind of activity. When your county asks for proof, you send or bring these yourself.",
     "anyProof": "Your county can't require one specific kind of proof. Pay stubs, program attendance records and signed letters are all examples.",
     "prevMonth": "Previous month",
@@ -222,6 +223,7 @@
       "save": "{name} wasn't added. This phone may be out of storage."
     },
     "cf888": {
+      "infoLabel": "About the CF 888 form",
       "why": "Volunteer hours have to be verified. One way is California's CF 888 form, signed by someone at the organization.",
       "fill": "Fill a CF 888 for {place}",
       "fillUnnamed": "Fill a CF 888",
