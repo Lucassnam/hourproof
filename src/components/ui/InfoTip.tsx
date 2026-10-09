@@ -69,7 +69,7 @@ export function InfoTip({
   };
 
   return (
-    <span className="shrink-0 print:hidden" data-testid={testId}>
+    <span className="inline-flex shrink-0 self-center print:hidden" data-testid={testId}>
       <button
         ref={triggerRef}
         type="button"
@@ -82,9 +82,12 @@ export function InfoTip({
       >
         <span
           aria-hidden="true"
-          className="flex size-6 items-center justify-center rounded-full border-2 border-border bg-surface font-display text-sm font-bold leading-none text-text-muted"
+          className="flex size-6 items-center justify-center rounded-full border-2 border-border bg-surface text-text-muted"
         >
-          i
+          <svg viewBox="0 0 24 24" className="size-4 fill-current">
+            <circle cx="12" cy="6.5" r="1.6" />
+            <rect x="10.6" y="10" width="2.8" height="8" rx="1.4" />
+          </svg>
         </span>
       </button>
       {open && typeof document !== "undefined"
@@ -115,7 +118,9 @@ export function InfoTip({
                     onClick={close}
                     className="-mr-2 -mt-2 flex size-11 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-text-muted outline-offset-2 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-signal"
                   >
-                    <span aria-hidden="true">×</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-current stroke-2.5" strokeLinecap="round">
+                      <path d="m6 6 12 12M18 6 6 18" />
+                    </svg>
                   </button>
                 </div>
                 <div className="min-h-0 overflow-y-auto p-4 text-base leading-snug">{children}</div>

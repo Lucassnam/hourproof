@@ -15,8 +15,9 @@ test("recipient can reserve, check in, and add confirmed hours to the shared tra
   const toolNav = page.getByRole("navigation", { name: "HourProof tools" });
   await expect(toolNav.getByRole("link")).toHaveCount(3);
   await expect(page.getByRole("link", { name: "Volunteer", exact: true })).toHaveCount(1);
-  await expect(page.getByRole("heading", { name: /Volunteer nearby/i })).toBeVisible();
-  await expect(page.getByText(/sample data/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Volunteer shifts near Mountain View" })).toBeVisible();
+  await expect(page.getByText("Volunteer nearby. Keep proof of every hour.")).toBeHidden();
+  await expect(page.getByText(/sample shifts only/i)).toBeVisible();
   await expect(page.getByText(/Reserve a shift, check in/)).toBeHidden();
   await page.getByRole("button", { name: "How ShiftCred works" }).click();
   await expect(page.getByText(/Reserve a shift, check in/)).toBeVisible();
@@ -54,8 +55,15 @@ test("ShiftCred appears after the screener says the rule applies", async ({ page
 
 test("kitchen can create a profile, publish a shift, and receive a QR", async ({ page }) => {
   await page.goto("/shiftcred");
+  await expect(page.getByRole("group", { name: "Map of sample volunteer shifts" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Map", exact: true }).click();
   await expect(page.getByRole("group", { name: "Map of sample volunteer shifts" })).toBeVisible();
-  await page.getByRole("button", { name: /Run a kitchen or pantry/ }).click();
+  await expect(page.getByRole("button", { name: /Run a kitchen or pantry/ })).toBeVisible();
+  await page.getByRole("button", { name: "Open volunteer menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Volunteer menu" });
+  await expect(menu.getByRole("button", { name: "Find shifts" })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Verified shifts" })).toBeVisible();
+  await menu.getByRole("button", { name: /Run a kitchen or pantry/ }).click();
   await page.getByLabel("Organization name").fill("Demo Kitchen");
   await page.getByLabel("Authorized representative").fill("Dana Supervisor");
   await page.getByLabel("Work email").fill("dana@example.org");

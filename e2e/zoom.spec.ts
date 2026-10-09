@@ -13,7 +13,7 @@ async function expectNoSideScroll(page: Page, what: string) {
   expect(scrollWidth, `${what}: scrollWidth ${scrollWidth} > clientWidth ${clientWidth}`).toBeLessThanOrEqual(clientWidth);
 }
 
-test("M11: no horizontal scroll at 180px on /, the screener checklist and /log (en and es)", async ({ page }) => {
+test("M11: no horizontal scroll at 180px across the main tools (en and es)", async ({ page }) => {
   for (const lang of ["en", "es"] as const) {
     await page.context().addCookies([{ name: "NEXT_LOCALE", value: lang, domain: "localhost", path: "/" }]);
 
@@ -50,5 +50,18 @@ test("M11: no horizontal scroll at 180px on /, the screener checklist and /log (
     await page.getByRole("button", { name: "Close information", exact: true }).click();
     await page.getByRole("button", { name: lang === "en" ? "Previous month" : "Mes anterior" }).click();
     await expectNoSideScroll(page, `${lang} /log past month`);
+
+    await page.goto("/shiftcred");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expectNoSideScroll(page, `${lang} /shiftcred`);
+    await page.getByRole("button", { name: lang === "en" ? "Open volunteer menu" : "Abrir menú de voluntariado" }).click();
+    const volunteerMenu = page.getByRole("dialog", { name: lang === "en" ? "Volunteer menu" : "Menú de voluntariado" });
+    await expect(volunteerMenu).toBeInViewport();
+    const menuBounds = await volunteerMenu.boundingBox();
+    expect(menuBounds).not.toBeNull();
+    expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(180);
+    await expectNoSideScroll(page, `${lang} /shiftcred menu`);
+    await page.getByRole("button", { name: lang === "en" ? "Close menu" : "Cerrar menú" }).click();
   }
 });
