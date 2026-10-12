@@ -1,0 +1,10 @@
+# Hosted settings for the HourProof Supabase project, applied with `supabase config push`.
+# Only the properties declared here are pushed; everything else on the project is left
+# as it is. Run `supabase config diff` first to preview a change.
+project_id = "nwwrapiztjuvymfyhwxr"
+
+[auth]
+# ShiftCred volunteers have no account: the phone signs in anonymously on first check-in
+# (src/lib/shifts/supabase.ts, ensureSession), and check_in/check_out/my_shifts are
+# granted to `authenticated` only.
+enable_anonymous_sign_ins = true

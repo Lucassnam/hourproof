@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const E2E_ENV =
+  "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= HOURPROOF_MOCK_SHIFTS=1 NEXT_PUBLIC_HOURPROOF_BACKEND=mock";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -16,8 +19,11 @@ export default defineConfig({
     // time), so it's set on the build step too, not just start:e2e.
     // HOURPROOF_MOCK_SHIFTS=1 is what makes /api/mock-shifts respond instead
     // of 404ing, and unlocks its e2e-only reset/x-hp-now extras.
-    command:
-      "HOURPROOF_MOCK_SHIFTS=1 NEXT_PUBLIC_HOURPROOF_BACKEND=mock npm run build && HOURPROOF_MOCK_SHIFTS=1 NEXT_PUBLIC_HOURPROOF_BACKEND=mock npm run start:e2e",
+    // The two Supabase vars are set to empty on purpose: getShiftBackend() prefers
+    // Supabase whenever both are set, and a developer's .env.local sets them, so without
+    // this e2e would check volunteers in to the real project. An empty value in the
+    // environment still wins over .env.local (@next/env only fills undefined keys).
+    command: `${E2E_ENV} npm run build && ${E2E_ENV} npm run start:e2e`,
     port: 7051,
     // Always start a fresh server for this run. `reuseExistingServer: true`
     // (the old local-dev default) let e2e silently test whatever was already
