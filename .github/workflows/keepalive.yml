@@ -1,0 +1,40 @@
+name: Supabase keep-alive
+
+# A free Supabase project is paused after about a week without database activity, and
+# judges can ask for the working app until results come out (Jan 15, 2027). This calls the
+# database's ping() function every 3 days so it never goes quiet.
+#
+# GitHub only runs scheduled workflows from the default branch, and turns them off after
+# 60 days without a commit to the repository: re-enable it under Actions if that happens.
+#
+# Set two repository variables (Settings > Secrets and variables > Actions > Variables):
+#   SUPABASE_URL       e.g. https://<project-ref>.supabase.co
+#   SUPABASE_ANON_KEY  the project's publishable (anon) key. It is public by design: the
+#                      same value ships in the site's JavaScript.
+
+on:
+  schedule:
+    - cron: "17 9 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call ping()
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_ANON_KEY is not set as a repository variable."
+            exit 1
+          fi
+          body=$(curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "ping() returned: $body"
+          [ "$body" = "1" ]
