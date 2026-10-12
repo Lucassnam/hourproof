@@ -49,7 +49,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
   it('checkIn ensures a session (signs in anonymously if none), then calls check_in(p_code, p_name), and maps kitchen_name straight from the row (no second call)', async () => {
     getSessionMock.mockResolvedValueOnce({ data: { session: null } })
     rpcMock.mockResolvedValueOnce(
-      ok({
+      ok([{
         id: 's1',
         kitchen_id: 'k1',
         check_in: '2026-10-05T16:00:00Z',
@@ -59,7 +59,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
         confirmed_by: null,
         reason: null,
         kitchen_name: 'Community Kitchen',
-      }),
+      }]),
     )
 
     const backend = new SupabaseShiftBackend()
@@ -79,7 +79,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
 
   it('checkIn does not sign in anonymously when a session already exists', async () => {
     rpcMock.mockResolvedValueOnce(
-      ok({
+      ok([{
         id: 's1',
         kitchen_id: 'k1',
         check_in: '2026-10-05T16:00:00Z',
@@ -89,7 +89,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
         confirmed_by: null,
         reason: null,
         kitchen_name: 'Community Kitchen',
-      }),
+      }]),
     )
     const backend = new SupabaseShiftBackend()
     await backend.checkIn('CODE123', 'Ana')
@@ -98,7 +98,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
 
   it('checkOut calls check_out(p_code) and maps kitchen_name straight from the row (no second call), even at an inactive kitchen', async () => {
     rpcMock.mockResolvedValueOnce(
-      ok({
+      ok([{
         id: 's1',
         kitchen_id: 'k1',
         check_in: '2026-10-05T16:00:00Z',
@@ -111,7 +111,7 @@ describe('SupabaseShiftBackend: RPC name and argument mapping', () => {
         // a real name comes back even for a kitchen deactivated between
         // check-in and check-out.
         kitchen_name: 'The Deactivated Kitchen',
-      }),
+      }]),
     )
     const backend = new SupabaseShiftBackend()
     const shift = await backend.checkOut('CODE123')
@@ -293,5 +293,21 @@ describe('SupabaseShiftBackend: error-code mapping', () => {
     rpcMock.mockRejectedValueOnce(new Error('fetch failed'))
     const backend = new SupabaseShiftBackend()
     await expect(backend.posterCode('slug', '123456')).rejects.toMatchObject({ code: 'network' })
+  })
+})
+
+describe('SupabaseShiftBackend: env reaches the browser', () => {
+  // Next only inlines NEXT_PUBLIC_* values into the browser bundle where the code says
+  // `process.env.NEXT_PUBLIC_X` literally. A computed read (`process.env[name]`) works
+  // in Node, so every test above passes with it, and is undefined in a browser: on the
+  // hosted project the check-in page said "isn't set up yet" and never called Supabase
+  // (seen 2026-10-12). This reads the source, since no Node test can see the difference.
+  it('reads its two settings with literal process.env.NEXT_PUBLIC_* accesses, never a computed one', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const source = await readFile(new URL('../supabase.ts', import.meta.url), 'utf8')
+    const code = source.replace(/\/\/.*$/gm, '')
+    expect(code).not.toMatch(/process\.env\s*\[/)
+    expect(code).toContain('process.env.NEXT_PUBLIC_SUPABASE_URL')
+    expect(code).toContain('process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY')
   })
 })

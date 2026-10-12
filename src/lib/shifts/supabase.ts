@@ -74,8 +74,20 @@ function mapErrorMessage(message: string | undefined): BackendErrorCode {
   return 'network'
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name]
+// check_in and check_out are declared `returns table (...)`, and PostgREST answers a
+// set-returning function with an array even when it yields exactly one row (seen on the
+// hosted project, 2026-10-12). Reading that array as the row itself gave a shift whose
+// every field was undefined.
+function firstRow<T>(rows: T[]): T {
+  const row = Array.isArray(rows) ? rows[0] : undefined
+  if (!row) throw new ShiftBackendError('network', 'empty RPC result')
+  return row
+}
+
+// Takes the value, not the name: the caller must write `process.env.NEXT_PUBLIC_X` out in
+// full, because that literal is what Next replaces with the value in the browser bundle.
+// Looking a variable up by a computed name works in Node and is undefined in a browser.
+function required(value: string | undefined, name: string): string {
   if (!value) throw new ShiftBackendError('unavailable', `missing env ${name}`)
   return value
 }
@@ -89,7 +101,10 @@ let clientPromise: Promise<SupabaseClient> | null = null
 function getClient(): Promise<SupabaseClient> {
   if (!clientPromise) {
     clientPromise = import('@supabase/supabase-js').then(({ createClient }) =>
-      createClient(requireEnv('NEXT_PUBLIC_SUPABASE_URL'), requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')),
+      createClient(
+        required(process.env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL'),
+        required(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      ),
     )
   }
   return clientPromise
@@ -142,8 +157,8 @@ export class SupabaseShiftBackend implements ShiftBackend {
     await this.ensureSession(client)
     // check_in returns every shift column plus kitchen_name directly (Task 3
     // fix round 1), so no second lookup is needed to name the kitchen.
-    const row = await this.rpc<RawNamedShiftRow>(client, 'check_in', { p_code: code, p_name: displayName })
-    return mapNamedShift(row)
+    const rows = await this.rpc<RawNamedShiftRow[]>(client, 'check_in', { p_code: code, p_name: displayName })
+    return mapNamedShift(firstRow(rows))
   }
 
   async checkOut(code: string): Promise<Shift> {
@@ -153,8 +168,8 @@ export class SupabaseShiftBackend implements ShiftBackend {
     // (the SQL looks the kitchen up without an active filter there, so a
     // volunteer who is already checked in can still check out and get a
     // real name back, not '').
-    const row = await this.rpc<RawNamedShiftRow>(client, 'check_out', { p_code: code })
-    return mapNamedShift(row)
+    const rows = await this.rpc<RawNamedShiftRow[]>(client, 'check_out', { p_code: code })
+    return mapNamedShift(firstRow(rows))
   }
 
   async openShift(): Promise<Shift | null> {
