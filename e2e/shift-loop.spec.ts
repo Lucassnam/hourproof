@@ -85,14 +85,16 @@ test("a kitchen shift shows in the log as waiting, then as verified once a super
   await page.reload();
   await expect(page.getByTestId("shift-status")).toHaveText("Verified by Sam");
   await expect(ring(page)).toHaveAttribute("aria-label", "3 of 80 hours this month. 3 of them verified by a kitchen.");
-  await expect(page.getByTestId("ring-legend")).toContainText("Verified by a kitchen");
-  await expect(page.getByTestId("ring-legend")).toContainText("From your own log");
+  // Every counted hour is verified, so the legend has nothing striped to explain yet.
+  await expect(page.getByTestId("ring-legend")).toHaveText("Verified by a kitchen");
 
   // Hours the person logs themselves draw as the striped part of the ring.
   await addHours(page, { type: /^Paid work/, hours: "5" });
   await expect(ring(page)).toHaveAttribute("aria-label", "8 of 80 hours this month. 3 of them verified by a kitchen.");
   await expect(page.getByTestId("ring-verified")).toHaveCount(1);
   await expect(page.getByTestId("ring-own")).toHaveCount(1);
+  await expect(page.getByTestId("ring-legend")).toContainText("Verified by a kitchen");
+  await expect(page.getByTestId("ring-legend")).toContainText("From your own log");
   await expect(savedRows(page)).toHaveCount(2);
 
   // Logging the same volunteering by hand as well gets a gentle note, and nothing is blocked.
@@ -165,3 +167,42 @@ test("the demo shows a verified kitchen shift and a waiting one, without any net
   await page.waitForTimeout(500);
   expect(calls).toEqual([]);
 });
+
+// A log left open must not keep saying "Waiting" after the kitchen confirms.
+async function confirmFromTheKitchen(request: Parameters<typeof mockCall>[0], volunteerId: string) {
+  const [shift] = await mockCall<ApiShift[]>(request, ns, "myShifts", { sinceDate: "2026-01-01" }, { volunteerId, at: NOW });
+  await mockCall(request, ns, "decide", { slug: SLUG, pin: PIN, shiftId: shift.id, decision: "confirm", supervisor: "Sam" }, { at: NOW });
+}
+
+test("an open log picks up the kitchen's confirmation when the phone comes back to it, with no reload", async ({ page, request }) => {
+  const volunteerId = await workAShift(page);
+  await page.goto("/log");
+  await expect(page.getByTestId("shift-status")).toHaveText("Waiting for the kitchen to confirm");
+
+  await confirmFromTheKitchen(request, volunteerId);
+  // The phone is woken up, or the tab is brought back to the front.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByTestId("shift-status")).toHaveText("Verified by Sam");
+});
+
+test("while a shift is waiting, an open log asks again every 30 seconds, and stops once nothing is waiting", async ({ page, request }) => {
+  const volunteerId = await workAShift(page);
+  // A clock the test can move, starting at the same moment.
+  await page.clock.install({ time: NOW });
+  await page.goto("/log");
+  await expect(page.getByTestId("shift-status")).toHaveText("Waiting for the kitchen to confirm");
+
+  await confirmFromTheKitchen(request, volunteerId);
+  await page.clock.fastForward(31_000);
+  await expect(page.getByTestId("shift-status")).toHaveText("Verified by Sam");
+
+  // Nothing is waiting any more: two more minutes pass without a single request.
+  const calls: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/mock-shifts")) calls.push(r.url());
+  });
+  await page.clock.fastForward(120_000);
+  await page.waitForTimeout(300);
+  expect(calls).toEqual([]);
+});
+

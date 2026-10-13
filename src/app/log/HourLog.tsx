@@ -278,10 +278,13 @@ export function HourLog() {
                 <LegendSwatch striped={false} />
                 {t("legend.verified")}
               </li>
-              <li className="flex items-center gap-2">
-                <LegendSwatch striped />
-                {t("legend.own")}
-              </li>
+              {/* Only when part of the ring is actually striped. */}
+              {summary.counted > summary.verifiedCounted && (
+                <li className="flex items-center gap-2">
+                  <LegendSwatch striped />
+                  {t("legend.own")}
+                </li>
+              )}
             </ul>
           )}
 
