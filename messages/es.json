@@ -99,7 +99,8 @@
       "label": "{counted} de 80 horas este mes",
       "labelMet": "{counted} de 80 horas este mes. Listo este mes.",
       "labelPast": "{counted} de 80 horas en {month}",
-      "donePast": "Mes cumplido"
+      "donePast": "Mes cumplido",
+      "verifiedPart": "{verified} de ellas verificadas por una cocina."
     },
     "pace": {
       "on_track": "Va bien. A este ritmo llegará a {projected} horas.",
@@ -191,11 +192,28 @@
       "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
       "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
     },
-    "proofLink": "Sus comprobantes"
+    "proofLink": "Sus comprobantes",
+    "legend": {
+      "verified": "Verificadas por una cocina",
+      "own": "De su propio registro"
+    },
+    "shift": {
+      "confirmed": "Verificado por {name}",
+      "confirmedNoName": "Verificado por la cocina",
+      "pending": "Esperando que la cocina lo confirme",
+      "open": "Registró su entrada. Todavía no cuenta.",
+      "rejected": "No aceptado: {reason}",
+      "rejectedNoReason": "No aceptado por la cocina",
+      "autoClosed": "Se cerró solo después de 8 horas. La cocina pondrá la hora real de salida.",
+      "duplicate": "Es posible que haya anotado dos veces un turno de cocina el {date}. Si es así, borre su propia entrada.",
+      "syncFailed": "No se pudieron actualizar sus turnos de cocina. Estos son los últimos guardados en este teléfono.",
+      "fromKitchen": "Los turnos de cocina vienen de los registros de la cocina. Solo la cocina puede cambiarlos."
+    }
   },
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",
-    "exit": "Salir de la demostración"
+    "exit": "Salir de la demostración",
+    "kitchen": "Cocina comunitaria"
   },
   "checkin": {
     "title": "Registrar entrada",
@@ -374,7 +392,10 @@
       "preparing": "Preparando el PDF…",
       "error": "No se pudo preparar el PDF. Inténtelo de nuevo o use el formulario en blanco.",
       "next": "Después: pida al representante de la organización que revise las horas, llene su parte y firme. Luego agregue una foto del formulario firmado en la sección de Voluntariado.",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "confirmed": "Un supervisor de {place} ({names}) verificó {hours} de estas en HourProof.",
+      "confirmedNoName": "Un supervisor de {place} verificó {hours} de estas en HourProof.",
+      "stillNeeded": "Su condado todavía necesita un formulario firmado como el CF 888, o que la organización misma se lo diga. Pregunte a su condado si acepta un registro de HourProof."
     },
     "backToLog": "Volver a su registro de horas",
     "savedOnPhone": "Sus archivos se guardan solo en este teléfono."

@@ -8,6 +8,31 @@ import { ACTIVITY_TYPES, type ActivityType, type Entry } from '@/lib/hours/types
 export type ProofGroup = { type: ActivityType; hours: number }
 export type VolunteerPlace = { place: string /* '' when no place was typed */; hours: number }
 
+// A kitchen shift that is still open or was not accepted counts toward nothing (the same rule
+// summarizeMonth applies on /log), so the proof page leaves it out.
+export function proofEntries(monthEntries: readonly Entry[]): Entry[] {
+  return monthEntries.filter(
+    (entry) => !(entry.source === 'shift' && (entry.verification === 'open' || entry.verification === 'rejected')),
+  )
+}
+
+function placeKey(place: string | undefined): string {
+  return (place ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+}
+
+// For one organization: the hours a supervisor there confirmed in HourProof, and who did.
+export function kitchenConfirmed(monthEntries: readonly Entry[], place: string): { hours: number; by: string[] } {
+  const key = placeKey(place)
+  let quarters = 0
+  const by: string[] = []
+  for (const entry of monthEntries) {
+    if (entry.source !== 'shift' || entry.verification !== 'confirmed' || placeKey(entry.place) !== key) continue
+    quarters += Math.round(entry.hours * 4)
+    if (entry.confirmedBy && !by.includes(entry.confirmedBy)) by.push(entry.confirmedBy)
+  }
+  return { hours: quarters / 4, by }
+}
+
 export function proofGroups(monthEntries: readonly Entry[]): ProofGroup[] {
   const hours = new Map<ActivityType, number>()
   for (const entry of monthEntries) hours.set(entry.type, (hours.get(entry.type) ?? 0) + entry.hours)

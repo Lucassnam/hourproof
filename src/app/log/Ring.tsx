@@ -20,6 +20,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export function Ring({
   counted,
+  verified = 0,
   target = 80,
   countedText,
   label,
@@ -29,6 +30,11 @@ export function Ring({
   loading = false,
 }: {
   counted: number;
+  // Hours a kitchen supervisor confirmed (a part of `counted`). When there are some, they
+  // draw solid and the rest of the arc draws striped, so "confirmed by someone else" and
+  // "from your own log" look different without relying on color. With none, the whole arc
+  // is solid, exactly as before kitchen shifts existed.
+  verified?: number;
   target?: number;
   // `counted` already formatted for the locale (e.g. "52" or "52,5").
   countedText: string;
@@ -43,6 +49,8 @@ export function Ring({
 }) {
   const fraction = loading ? 0 : Math.max(0, Math.min(1, counted / target));
   const offset = CIRCUMFERENCE * (1 - fraction);
+  const verifiedFraction = loading ? 0 : Math.max(0, Math.min(fraction, verified / target));
+  const split = verifiedFraction > 0 && verifiedFraction < fraction;
   // Long numbers ("79,8") get a slightly smaller size so they stay inside the hole.
   const numberSize = (countedText.length <= 3 ? "text-6xl" : "text-5xl") + " max-[260px]:text-4xl";
 
@@ -56,6 +64,13 @@ export function Ring({
     >
       <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true" className="-rotate-90">
         <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={TRACK} className="stroke-border" />
+        {split && (
+          <defs>
+            <pattern id="hp-ring-stripes" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)">
+              <rect width="5" height="9" className="fill-proof" />
+            </pattern>
+          </defs>
+        )}
         {fraction > 0 && (
           <circle
             cx={SIZE / 2}
@@ -63,9 +78,28 @@ export function Ring({
             r={RADIUS}
             fill="none"
             strokeWidth={STROKE}
-            strokeLinecap={fraction >= 1 ? "butt" : "round"}
+            strokeLinecap={fraction >= 1 || split ? "butt" : "round"}
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
+            stroke={split ? "url(#hp-ring-stripes)" : undefined}
+            data-testid={split ? "ring-own" : undefined}
+            className={
+              (split ? "" : "stroke-proof ") +
+              "motion-safe:transition-[stroke-dashoffset] motion-safe:duration-200 motion-safe:ease-out"
+            }
+          />
+        )}
+        {split && (
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={RADIUS}
+            fill="none"
+            strokeWidth={STROKE}
+            strokeLinecap="butt"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={CIRCUMFERENCE * (1 - verifiedFraction)}
+            data-testid="ring-verified"
             className="stroke-proof motion-safe:transition-[stroke-dashoffset] motion-safe:duration-200 motion-safe:ease-out"
           />
         )}

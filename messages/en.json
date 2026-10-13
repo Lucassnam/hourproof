@@ -99,7 +99,8 @@
       "label": "{counted} of 80 hours this month",
       "labelMet": "{counted} of 80 hours this month. Done for this month.",
       "labelPast": "{counted} of 80 hours in {month}",
-      "donePast": "Month done"
+      "donePast": "Month done",
+      "verifiedPart": "{verified} of them verified by a kitchen."
     },
     "pace": {
       "on_track": "On track. At this pace you'll reach {projected} hours.",
@@ -191,11 +192,28 @@
       "jobSearch": "Job search counts only as part of a job program. Workfare is checked differently by your county.",
       "report": "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days."
     },
-    "proofLink": "Your proof documents"
+    "proofLink": "Your proof documents",
+    "legend": {
+      "verified": "Verified by a kitchen",
+      "own": "From your own log"
+    },
+    "shift": {
+      "confirmed": "Verified by {name}",
+      "confirmedNoName": "Verified by the kitchen",
+      "pending": "Waiting for the kitchen to confirm",
+      "open": "Checked in now. Not counted yet.",
+      "rejected": "Not accepted: {reason}",
+      "rejectedNoReason": "Not accepted by the kitchen",
+      "autoClosed": "Closed on its own after 8 hours. The kitchen will set the real end time.",
+      "duplicate": "You may have logged a kitchen shift twice on {date}. If so, delete your own entry.",
+      "syncFailed": "Couldn't update your kitchen shifts. These are the last ones saved on this phone.",
+      "fromKitchen": "Kitchen shifts come from the kitchen's records. Only the kitchen can change them."
+    }
   },
   "demo": {
     "banner": "Demo — sample data, not yours.",
-    "exit": "Exit demo"
+    "exit": "Exit demo",
+    "kitchen": "Community kitchen"
   },
   "checkin": {
     "title": "Check in",
@@ -374,7 +392,10 @@
       "preparing": "Making the PDF…",
       "error": "The PDF couldn't be made. Try again, or use the blank form.",
       "next": "Next: ask the organization's representative to check the hours, fill in their part and sign. Then add a photo of the signed form in the Volunteering box.",
-      "close": "Close"
+      "close": "Close",
+      "confirmed": "A supervisor at {place} ({names}) verified {hours} of these in HourProof.",
+      "confirmedNoName": "A supervisor at {place} verified {hours} of these in HourProof.",
+      "stillNeeded": "Your county still needs a signed form like the CF 888, or to hear from the organization itself. Ask your county if it accepts an HourProof record."
     },
     "backToLog": "Back to your hour log",
     "savedOnPhone": "Your files are saved only on this phone."

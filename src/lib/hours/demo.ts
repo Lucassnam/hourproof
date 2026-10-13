@@ -124,3 +124,36 @@ export function demoEntries(today: string): Entry[] {
 
   return currentMonthEntries
 }
+
+// The demo has no kitchen and no network. To show what a kitchen shift looks like, the hour
+// log and the proof page display the demo's own volunteering entries as shifts at one
+// kitchen: in the current month the earliest is confirmed and the rest are waiting, and a
+// finished month is all confirmed. Display only: nothing is stored, hours and dates are
+// untouched, so every total stays exactly what it was. Entries the person adds while in the
+// demo (their ids don't start with `demo-`) are left alone.
+//
+// `kitchen` is passed in already translated, since a seeded name would be English-only text
+// on the Spanish screens (see the note on `place` above).
+export function demoKitchenView(entries: readonly Entry[], today: string, kitchen: string, supervisor: string): Entry[] {
+  const currentMonth = monthOf(today)
+  const seededVolunteer = entries
+    .filter((entry) => entry.id.startsWith('demo-') && entry.type === 'volunteer')
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  const firstOfCurrentMonth = seededVolunteer.find((entry) => monthOf(entry.date) === currentMonth)?.id
+  const shiftIds = new Set(seededVolunteer.map((entry) => entry.id))
+
+  return entries.map((entry) => {
+    if (!shiftIds.has(entry.id)) return entry
+    const confirmed = monthOf(entry.date) < currentMonth || entry.id === firstOfCurrentMonth
+    const shown: Entry = {
+      ...entry,
+      place: kitchen,
+      source: 'shift',
+      verification: confirmed ? 'confirmed' : 'pending',
+      shiftId: entry.id,
+      autoClosed: false,
+    }
+    if (confirmed) shown.confirmedBy = supervisor
+    return shown
+  })
+}

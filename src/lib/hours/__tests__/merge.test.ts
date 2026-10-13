@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { demoKitchenView } from '../demo'
 import { mergeMonth, shiftsToEntries } from '../merge'
 import { summarizeMonth } from '../summarize'
 import type { Entry } from '../types'
@@ -103,5 +104,57 @@ describe('mergeMonth', () => {
     const shifts = [shift({ status: 'pending', confirmedBy: null })]
     const { duplicateDates } = mergeMonth(self, shifts, '2026-10', now)
     expect(duplicateDates).toEqual(['2026-10-05'])
+  })
+})
+
+// The demo has no kitchen and no network, so it shows its own volunteering entries the way
+// a real kitchen shift would look. Display only: the stored demo entries are unchanged.
+describe('demoKitchenView', () => {
+  const entry = (id: string, date: string, type: Entry['type'], hours: number): Entry => ({
+    id,
+    date,
+    type,
+    hours,
+    createdAt: `${date}T18:00:00.000Z`,
+  })
+  const demo = [
+    entry('demo-2026-10-01-1', '2026-10-01', 'work', 6),
+    entry('demo-2026-10-05-3', '2026-10-05', 'volunteer', 8),
+    entry('demo-2026-10-11-6', '2026-10-11', 'volunteer', 3),
+    entry('demo-2026-10-13-7', '2026-10-13', 'job_search', 2),
+  ]
+
+  test('shows the first volunteering entry of the current month as confirmed and the next as waiting', () => {
+    const view = demoKitchenView(demo, '2026-10-13', 'Community kitchen', 'Rosa')
+    expect(view.map((e) => [e.id, e.source ?? 'self', e.verification ?? null])).toEqual([
+      ['demo-2026-10-01-1', 'self', null],
+      ['demo-2026-10-05-3', 'shift', 'confirmed'],
+      ['demo-2026-10-11-6', 'shift', 'pending'],
+      ['demo-2026-10-13-7', 'self', null],
+    ])
+    expect(view[1]).toMatchObject({ place: 'Community kitchen', confirmedBy: 'Rosa', hours: 8 })
+    expect(view[2].confirmedBy).toBeUndefined()
+  })
+
+  test('never changes a total: the same hours count, 8 of them verified', () => {
+    const before = summarizeMonth(demo, '2026-10', '2026-10-13')
+    const after = summarizeMonth(demoKitchenView(demo, '2026-10-13', 'Community kitchen', 'Rosa'), '2026-10', '2026-10-13')
+    expect(after.counted).toBe(before.counted)
+    expect(after.byType).toEqual(before.byType)
+    expect(after.flags).toEqual(before.flags)
+    expect(before.verifiedCounted).toBe(0)
+    expect(after.verifiedCounted).toBe(8)
+  })
+
+  test('shows every volunteering entry of a finished month as confirmed', () => {
+    const sept = [entry('demo-2026-09-05-3', '2026-09-05', 'volunteer', 8), entry('demo-2026-09-11-6', '2026-09-11', 'volunteer', 3)]
+    const view = demoKitchenView(sept, '2026-10-02', 'Community kitchen', 'Rosa')
+    expect(view.map((e) => e.verification)).toEqual(['confirmed', 'confirmed'])
+  })
+
+  test('leaves entries a person added during the demo alone', () => {
+    const own = entry('7f1d-own', '2026-10-06', 'volunteer', 2)
+    const view = demoKitchenView([...demo, own], '2026-10-13', 'Community kitchen', 'Rosa')
+    expect(view.find((e) => e.id === '7f1d-own')).toEqual(own)
   })
 })
