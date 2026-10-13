@@ -6,25 +6,40 @@ import { Screen } from "@/components/ui/Screen";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { MonthButton } from "@/components/ui/MonthButton";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
-import { getMode, openStore } from "@/lib/hours/store";
+import { demoKitchenView } from "@/lib/hours/demo";
+import { mergeMonth } from "@/lib/hours/merge";
+import { getMode, openStore, type Mode } from "@/lib/hours/store";
 import type { ActivityType, Entry } from "@/lib/hours/types";
-import { ProofFileError, openProofStore, type ProofFile, type ProofStore } from "@/lib/proof/files";
-import { proofGroups, volunteerPlaces } from "@/lib/proof/groups";
+import { useKitchenShifts } from "@/lib/shifts/useKitchenShifts";
+import { ProofFileError, fileBlob, openProofStore, type ProofFile, type ProofStore } from "@/lib/proof/files";
+import { kitchenConfirmed, proofEntries, proofGroups, volunteerPlaces } from "@/lib/proof/groups";
 import { formatMonth, formatNumber } from "@/app/log/format";
 import { Cf888Form } from "./Cf888Form";
 
 // /proof: one box per activity type logged in the month, each holding the person's photos
 // and PDFs, plus a CF 888 per volunteer organization. Everything stays in IndexedDB on this
 // device (the hour log's database for entries, a separate one for files).
+//
+// Kitchen shifts that count (waiting or verified) are included with the person's own
+// volunteering, the same way /log counts them. A supervisor's tap in HourProof is not by
+// itself what the state asks for: volunteer hours need a form signed by the organization, or
+// the organization's own word to the county (docs/research/calfresh-rules-verification.md
+// row 10b). So the page says what was verified here and that the signed form is still needed.
 
-type Loaded = { entries: Entry[]; files: ProofStore };
+type Loaded = { entries: Entry[]; files: ProofStore; mode: Mode };
+
+// Same as the hour log's (src/app/log/HourLog.tsx).
+const DEMO_SUPERVISOR = "Rosa";
+const SHIFT_MONTHS_BACK = 12;
 
 const BLANK_CF888 = "https://cdss.ca.gov/Portals/9/Additional-Resources/Forms-and-Brochures/2020/A-D/CF888.pdf";
 
 export function ProofDocuments() {
   const t = useTranslations("proof");
   const tl = useTranslations("log");
+  const demoKitchen = useTranslations("demo")("kitchen");
   const locale = useLocale();
+  const [today] = useState(() => californiaDate());
   const [currentMonth] = useState(() => monthOf(californiaDate()));
   const [month, setMonth] = useState(currentMonth);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -40,7 +55,7 @@ export function ProofDocuments() {
         const mode = getMode();
         const [store, proof] = await Promise.all([openStore(mode), openProofStore(mode)]);
         const entries = await store.list();
-        if (!cancelled) setLoaded({ entries, files: proof });
+        if (!cancelled) setLoaded({ entries, files: proof, mode });
       } catch {
         if (!cancelled) setLoadFailed(true);
       }
@@ -62,10 +77,15 @@ export function ProofDocuments() {
     };
   }, [loaded, month]);
 
-  const monthEntries = useMemo(
-    () => (loaded ? loaded.entries.filter((e) => monthOf(e.date) === month) : []),
-    [loaded, month],
-  );
+  const { shifts } = useKitchenShifts(loaded?.mode === "real", `${addMonths(currentMonth, -SHIFT_MONTHS_BACK)}-01`);
+  const monthEntries = useMemo(() => {
+    if (!loaded) return [];
+    const all =
+      loaded.mode === "demo"
+        ? demoKitchenView(loaded.entries, today, demoKitchen, DEMO_SUPERVISOR).filter((e) => monthOf(e.date) === month)
+        : mergeMonth(loaded.entries, shifts, month, new Date()).entries;
+    return proofEntries(all);
+  }, [loaded, shifts, month, today, demoKitchen]);
   const groups = useMemo(() => proofGroups(monthEntries), [monthEntries]);
   const places = useMemo(() => volunteerPlaces(monthEntries), [monthEntries]);
   const monthName = formatMonth(locale, month);
@@ -161,9 +181,24 @@ export function ProofDocuments() {
               {type === "volunteer" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-lg leading-snug">{t("cf888.why")}</p>
-                  {places.map((p) => (
-                    <Cf888Form key={p.place || "-"} place={p.place} hours={p.hours} month={month} />
-                  ))}
+                  {places.map((p) => {
+                    const verified = p.place ? kitchenConfirmed(monthEntries, p.place) : { hours: 0, by: [] };
+                    return (
+                      <div key={p.place || "-"} className="flex flex-col gap-2">
+                        {verified.hours > 0 && (
+                          <p className="text-lg leading-snug" data-testid="kitchen-verified">
+                            <span className="font-semibold text-proof">
+                              {verified.by.length > 0
+                                ? t("cf888.confirmed", { place: p.place, names: verified.by.join(", "), hours: hoursText(verified.hours) })
+                                : t("cf888.confirmedNoName", { place: p.place, hours: hoursText(verified.hours) })}
+                            </span>{" "}
+                            {t("cf888.stillNeeded")}
+                          </p>
+                        )}
+                        <Cf888Form place={p.place} hours={p.hours} month={month} />
+                      </div>
+                    );
+                  })}
                   <a href={BLANK_CF888} target="_blank" rel="noopener" className="flex min-h-12 items-center self-start text-lg font-semibold text-signal underline decoration-2 underline-offset-4">
                     {t("cf888.blank")}
                   </a>
@@ -239,7 +274,7 @@ export function ProofDocuments() {
 
 // Opens the stored file in a new tab from a short-lived object URL (nothing is uploaded).
 function openFile(file: ProofFile) {
-  const url = URL.createObjectURL(file.blob);
+  const url = URL.createObjectURL(fileBlob(file));
   const link = document.createElement("a");
   link.href = url;
   link.target = "_blank";

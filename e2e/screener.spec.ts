@@ -454,7 +454,10 @@ test("meeting the requirement: 'you're meeting it', start tracking, no what to b
   await expect(whatToBring(page)).toHaveCount(0);
 });
 
-test("the Copy button copies the script and says Copied", async ({ page, context }) => {
+test("the Copy button copies the script and says Copied", async ({ page, context, browserName }) => {
+  // Reading the clipboard back needs a permission only Chromium lets a test grant
+  // (WebKit: "Unknown permission: clipboard-write").
+  test.skip(browserName !== "chromium", "clipboard permissions can only be granted in Chromium");
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await goToScreener(page);
   await toChecklist(page);
@@ -533,7 +536,12 @@ async function expectFocusClearOfBar(page: Page, what: string) {
 for (const lang of ["en", "es"] as const) {
   test(`I1 (final review, ${lang}): tabbing through the whole checklist at 360x740 never hides focus under the sticky bar`, async ({
     page,
+    browserName,
   }) => {
+    // WebKit's Tab key skips buttons and links unless a system setting is turned on, so this
+    // walk can't be driven there. The rule it protects (scroll padding for the sticky bar) is
+    // plain CSS and is checked in Chromium.
+    test.skip(browserName === "webkit", "Tab does not move through buttons and links in WebKit by default");
     if (lang === "es") {
       await chooseSpanishAndStart(page);
       await answerNoUntil(page, CHECKLIST_ES);

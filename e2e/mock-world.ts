@@ -65,3 +65,20 @@ export async function mockCall<T>(
   expect(res.ok(), `mock ${op} failed: ${body.error}`).toBe(true);
   return body.result as T;
 }
+
+// Opens a page whose form is in the HTML the server sends (the kitchen dashboard and the
+// poster), and waits until React has attached to it. Text typed into such a form before
+// that moment is wiped when React takes over, so a test that fills the PIN straight after
+// goto() can lose it on a slow machine: the first CI run on WebKit did, and "Show shifts"
+// then answered "Enter the 6 digits of the PIN." React marks every element it manages with
+// a `__reactProps$…` key, which is the signal waited for here.
+export async function gotoHydrated(page: Page, url: string): Promise<void> {
+  await page.goto(url);
+  await page.waitForFunction(() => {
+    // The first visible field (the PIN). Hidden inputs come first in the page and one of
+    // them, the form action's own, is never given a key.
+    const input = document.querySelector("input:not([type=hidden])");
+    return input !== null && Object.keys(input).some((key) => key.startsWith("__reactProps$"));
+  });
+}
+

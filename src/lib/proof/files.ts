@@ -17,7 +17,16 @@ export type ProofFile = {
   mime: string
   size: number
   addedAt: string /* ISO */
-  blob: Blob
+  // The file's contents. Bytes, not the File: WebKit refuses to store a File or Blob in
+  // IndexedDB in a private-style session (the write errors), and accepts an ArrayBuffer.
+  bytes: ArrayBuffer
+  // Only on files saved before 2026-10-13, which were stored as the File itself.
+  blob?: Blob
+}
+
+// The file as a Blob, for opening it. Made on demand from the stored bytes.
+export function fileBlob(file: ProofFile): Blob {
+  return file.blob ?? new Blob([file.bytes], { type: file.mime })
 }
 
 interface ProofDB extends DBSchema {
@@ -100,7 +109,7 @@ export async function openProofStore(mode: Mode): Promise<ProofStore> {
         mime: file.type,
         size: file.size,
         addedAt: now.toISOString(),
-        blob: file,
+        bytes: await file.arrayBuffer(),
       }
       await db.put(STORE_NAME, record)
       return record

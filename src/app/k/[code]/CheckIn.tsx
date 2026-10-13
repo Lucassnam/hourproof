@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Screen } from "@/components/ui/Screen";
 import { buttonClasses } from "@/components/ui/Button";
 import { safeGet, safeSet } from "@/lib/storage/safe";
+import { CHECKIN_ACK_KEY } from "@/lib/shifts/local";
 import { errorCode, loadBackend, withTimeout } from "@/lib/shifts/client-backend";
 import type { BackendErrorCode, KitchenInfo, Shift } from "@/lib/shifts/types";
 import {
@@ -28,7 +29,7 @@ const NAME_KEY = "hp.checkin.name";
 // Set on the first check-in tap that the server accepted on this device: the volunteer saw
 // the privacy line and "Tapping Check in means you agree." and tapped. Holds the time of that
 // agreement (ISO), kept only on this phone. Older builds stored "1"; any value counts.
-const ACK_KEY = "hp.checkin.privacyShown";
+const ACK_KEY = CHECKIN_ACK_KEY;
 // The id of the auto-closed shift whose notice this device already moved past.
 const AUTO_CLOSED_SEEN_KEY = "hp.checkin.autoClosedSeen";
 

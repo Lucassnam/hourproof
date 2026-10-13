@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page, type TestInfo, type APIRequestContext } from "@playwright/test";
 import QRCode from "qrcode";
-import { joinNamespace, mockCall, namespaceFor, resetMockWorld, serverTimeIs } from "./mock-world";
+import { gotoHydrated, joinNamespace, mockCall, namespaceFor, resetMockWorld, serverTimeIs } from "./mock-world";
 
 // The supervisor's dashboard (/kitchen/<slug>) and the QR poster (/kitchen/<slug>/poster),
 // Phase 3, Task 5, against the in-memory mock backend. Each test has its own mock namespace
@@ -56,7 +56,7 @@ async function apiShift(
 }
 
 async function openDashboard(page: Page, { pin = PIN, name = "Sam" } = {}) {
-  await page.goto(`/kitchen/${SLUG}`);
+  await gotoHydrated(page, `/kitchen/${SLUG}`);
   await page.getByLabel("Kitchen PIN (6 digits)").fill(pin);
   await page.getByLabel("Your first name").fill(name);
   await page.getByRole("button", { name: "Show shifts" }).click();
@@ -88,7 +88,7 @@ async function newPhone(browser: Browser, testInfo: TestInfo): Promise<Page> {
 
 test("1. a wrong PIN says so; the PIN never lands in the URL or storage; Lock forgets it", async ({ page }) => {
   expect(page.viewportSize()).toEqual({ width: 360, height: 740 });
-  await page.goto(`/kitchen/${SLUG}`);
+  await gotoHydrated(page, `/kitchen/${SLUG}`);
   await expect(page.getByRole("heading", { level: 1, name: "Confirm volunteer shifts" })).toBeVisible();
   const pin = page.getByLabel("Kitchen PIN (6 digits)");
   await expect(pin).toHaveAttribute("inputmode", "numeric");
@@ -127,7 +127,7 @@ test("1. a wrong PIN says so; the PIN never lands in the URL or storage; Lock fo
 });
 
 test("2. after 5 wrong PINs even the right one is refused as locked, until 15 minutes pass", async ({ page }) => {
-  await page.goto(`/kitchen/${SLUG}`);
+  await gotoHydrated(page, `/kitchen/${SLUG}`);
   await page.getByLabel("Your first name").fill("Sam");
   const pin = page.getByLabel("Kitchen PIN (6 digits)");
   const go = page.getByRole("button", { name: "Show shifts" });
@@ -296,7 +296,7 @@ test("6. a shift closed automatically at 8 hours needs the time they left before
 test("7. the poster: a server-drawn QR of /k/<code>; rotating makes a new code and the old poster stops working", async ({
   page,
 }) => {
-  await page.goto(`/kitchen/${SLUG}/poster`);
+  await gotoHydrated(page, `/kitchen/${SLUG}/poster`);
   await expect(page.getByRole("heading", { level: 1, name: "Print the check-in poster" })).toBeVisible();
   await page.getByLabel("Kitchen PIN (6 digits)").fill("999999");
   await page.getByRole("button", { name: "Show poster" }).click();
@@ -349,7 +349,7 @@ test("7. the poster: a server-drawn QR of /k/<code>; rotating makes a new code a
 });
 
 test("7b. the poster prints on its own: controls hidden, the kitchen name, a QR at least 12 cm, both languages", async ({ page }) => {
-  await page.goto(`/kitchen/${SLUG}/poster`);
+  await gotoHydrated(page, `/kitchen/${SLUG}/poster`);
   await page.getByLabel("Kitchen PIN (6 digits)").fill(PIN);
   await page.getByRole("button", { name: "Show poster" }).click();
   await expect(page.getByTestId("qr").locator("svg")).toHaveCount(1);
@@ -372,7 +372,7 @@ test("7b. the poster prints on its own: controls hidden, the kitchen name, a QR 
 test("8. Spanish: the dashboard and its decisions are in Spanish", async ({ page, context, request }) => {
   await context.addCookies([{ name: "NEXT_LOCALE", value: "es", domain: "localhost", path: "/" }]);
   const s = await apiShift(request, "vol-d", "Lupe", new Date(Date.now() - 2 * HOUR - 20 * MIN), new Date());
-  await page.goto(`/kitchen/${SLUG}`);
+  await gotoHydrated(page, `/kitchen/${SLUG}`);
   await expect(page.getByRole("heading", { level: 1, name: "Confirmar turnos de voluntarios" })).toBeVisible();
   await page.getByLabel("PIN de la cocina (6 dígitos)").fill("111111");
   await page.getByLabel("Su nombre").fill("Ana");
@@ -427,7 +427,7 @@ test.describe("screenshots", () => {
         await mockCall(request, ns, "decide", { slug: SLUG, pin: PIN, shiftId: ana.id, decision: "confirm", supervisor: "Sam" });
         await mockCall(request, ns, "decide", { slug: SLUG, pin: PIN, shiftId: kim.id, decision: "reject", supervisor: "Sam", reason: c.chip });
 
-        await page.goto(`/kitchen/${SLUG}`);
+        await gotoHydrated(page, `/kitchen/${SLUG}`);
         await expect(page.getByLabel(c.pin)).toBeVisible();
         await shot("1-unlock");
         await page.getByLabel(c.pin).fill("000000");
@@ -448,7 +448,7 @@ test.describe("screenshots", () => {
         await page.getByTestId("waiting-row").filter({ hasText: "Jose" }).locator("label", { hasText: c.chip }).click();
         await shot("4-reject-and-end-time");
 
-        await page.goto(`/kitchen/${SLUG}/poster`);
+        await gotoHydrated(page, `/kitchen/${SLUG}/poster`);
         await expect(page.getByLabel(c.pin)).toBeVisible();
         await shot("5-poster-pin");
         await page.getByLabel(c.pin).fill(PIN);

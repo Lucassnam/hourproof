@@ -99,7 +99,8 @@
       "label": "{counted} of 80 hours this month",
       "labelMet": "{counted} of 80 hours this month. Done for this month.",
       "labelPast": "{counted} of 80 hours in {month}",
-      "donePast": "Month done"
+      "donePast": "Month done",
+      "verifiedPart": "{verified} of them verified by a kitchen."
     },
     "pace": {
       "on_track": "On track. At this pace you'll reach {projected} hours.",
@@ -191,11 +192,49 @@
       "jobSearch": "Job search counts only as part of a job program. Workfare is checked differently by your county.",
       "report": "If the rule applies to you and your hours drop below 20 a week on average (80 a month), tell your county within 10 days."
     },
-    "proofLink": "Your proof documents"
+    "proofLink": "Your proof documents",
+    "legend": {
+      "verified": "Verified by a kitchen",
+      "own": "From your own log"
+    },
+    "shift": {
+      "confirmed": "Verified by {name}",
+      "confirmedNoName": "Verified by the kitchen",
+      "pending": "Waiting for the kitchen to confirm",
+      "open": "Checked in now. Not counted yet.",
+      "rejected": "Not accepted: {reason}",
+      "rejectedNoReason": "Not accepted by the kitchen",
+      "autoClosed": "Closed on its own after 8 hours. The kitchen will set the real end time.",
+      "duplicate": "You may have logged a kitchen shift twice on {date}. If so, delete your own entry.",
+      "syncFailed": "Couldn't update your kitchen shifts. These are the last ones saved on this phone.",
+      "fromKitchen": "Kitchen shifts come from the kitchen's records. Only the kitchen can change them."
+    },
+    "safe": {
+      "title": "Keep your hours safe",
+      "why": "If this phone is lost, or its browser data is cleared, your hours are gone. Save a copy from time to time.",
+      "save": "Save a copy of my hours",
+      "saved": "Saved a copy with {n, plural, one {# entry} other {# entries}}.",
+      "nothingToSave": "There are no hours to save yet.",
+      "saveError": "Couldn't make the copy. Please try again.",
+      "restore": "Restore from a copy",
+      "restoreLabel": "Choose a saved copy of your hours to restore",
+      "restored": "Added {n, plural, one {# entry} other {# entries}} from the copy.",
+      "restoredAlready": "{n, plural, one {# was} other {# were}} already here.",
+      "restoredFailed": "{n, plural, one {# entry} other {# entries}} couldn't be added.",
+      "notABackup": "That file isn't a copy of HourProof hours.",
+      "newerVersion": "That copy was made by a newer HourProof. Open the newest HourProof and try again.",
+      "notIncluded": "Proof photos and kitchen shifts are not in the copy. Kitchen shifts stay with the kitchen.",
+      "iosTitle": "On an iPhone or iPad",
+      "ios": "Add HourProof to your Home Screen: tap Share, then Add to Home Screen. Safari may erase hours saved on a website it hasn't opened in a week. The Home Screen app keeps them.",
+      "iosMove": "Hours already saved here may not move to the Home Screen app on their own. Save a copy here first, then restore it there.",
+      "install": "Add HourProof to this phone",
+      "installWhy": "It opens like an app, and your phone is less likely to clear its saved hours."
+    }
   },
   "demo": {
     "banner": "Demo — sample data, not yours.",
-    "exit": "Exit demo"
+    "exit": "Exit demo",
+    "kitchen": "Community kitchen"
   },
   "checkin": {
     "title": "Check in",
@@ -374,9 +413,76 @@
       "preparing": "Making the PDF…",
       "error": "The PDF couldn't be made. Try again, or use the blank form.",
       "next": "Next: ask the organization's representative to check the hours, fill in their part and sign. Then add a photo of the signed form in the Volunteering box.",
-      "close": "Close"
+      "close": "Close",
+      "confirmed": "A supervisor at {place} ({names}) verified {hours} of these in HourProof.",
+      "confirmedNoName": "A supervisor at {place} verified {hours} of these in HourProof.",
+      "stillNeeded": "Your county still needs a signed form like the CF 888, or to hear from the organization itself. Ask your county if it accepts an HourProof record."
     },
     "backToLog": "Back to your hour log",
     "savedOnPhone": "Your files are saved only on this phone."
+  },
+  "site": {
+    "footer": {
+      "label": "About this site",
+      "about": "About HourProof",
+      "privacy": "Privacy"
+    }
+  },
+  "about": {
+    "title": "About HourProof",
+    "what": "HourProof helps people on CalFresh in California with the work rule: checking whether it likely applies, keeping track of hours, and keeping proof ready for the county.",
+    "notGovTitle": "Not a government website",
+    "notGov": "HourProof is not CalFresh, your county or the State of California, and it is not connected to them. It can't see your case. Nothing here is a decision or legal advice. Only your county can decide whether the rule applies to you and whether your hours count.",
+    "rulesTitle": "Where the rules come from",
+    "rules": "The questions and rules follow the state's instructions to counties (CDSS All County Letter 26-29) and Santa Clara County's handbook. Each screening question links to its source.",
+    "rulesLink": "Read the state's letter (PDF, in English)",
+    "notReviewed": "No caseworker or legal-aid worker has reviewed our reading of the rules yet. Until one does, HourProof never tells you that you are exempt. It says you may be, and to ask your county.",
+    "reviewed": "Our reading of the rules was reviewed by {reviewer} on {date}.",
+    "whoTitle": "Who made it",
+    "who": "HourProof is a student project, made for the 2026 Congressional App Challenge in California's 16th Congressional District. It is free and has no ads.",
+    "codeLink": "See the code on GitHub",
+    "ai": "Much of the code, and the first draft of the Spanish text, were written with AI tools. A log of what they did is kept with the code.",
+    "aiLink": "Read the AI-use log",
+    "spanish": "The Spanish text has not yet been checked by a native speaker. If something reads wrong, please tell us.",
+    "contactTitle": "Contact",
+    "contactBenefits": "For questions about your benefits or your case, call {county}:",
+    "contactApp": "For questions about HourProof, or to ask us to remove your kitchen check-in records:",
+    "contactEmail": "Email {email}",
+    "contactGithub": "Write to us on GitHub",
+    "privacyLink": "How HourProof handles your information",
+    "home": "Back to the start"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "updated": "Last updated October 13, 2026.",
+    "short": "The short version: the hours you log and the documents you add stay on your phone. The only personal information HourProof receives is what you send when you check in at a kitchen.",
+    "onPhoneTitle": "What stays on your phone",
+    "onPhone1": "Your answers to the screening questions. They are gone when you close the tab.",
+    "onPhone2": "The hours you log, with any place or note you type.",
+    "onPhone3": "The photos and PDF files you add as proof.",
+    "onPhone4": "What you type into a CF 888 form. It is used to make the PDF on your phone and is not saved.",
+    "onPhone5": "A copy of your hours, if you save one. It goes where you save it.",
+    "onPhoneNote": "Because these stay only on your phone, nobody else can get them back for you. Clearing your browser's data, or losing the phone, removes them.",
+    "sentTitle": "What is sent to HourProof",
+    "sent1": "Your language choice (English or Spanish), as a cookie, so pages come back in the right language.",
+    "sent2": "When you check in at a kitchen: the first name or nickname you type, the times you check in and out, which kitchen, and a random ID for your phone. There is no account, and we don't ask for an email address or a phone number.",
+    "sent3": "Supervisors at that kitchen see your first name and your times, so they can confirm your hours. Their first name, and a reason if they don't accept a shift, are saved with the shift.",
+    "sent4": "After you have checked in at a kitchen, your hour log asks HourProof for your kitchen shifts so it can show them.",
+    "neverTitle": "What HourProof never receives",
+    "never1": "Your full name, birth date, address, case number or Social Security number.",
+    "never2": "Your pay stubs or any other document.",
+    "never3": "Your location.",
+    "neverNote": "There are no ads and no tracking. We don't sell your information, and we don't give it to anyone except the kitchen you checked in at.",
+    "hostsTitle": "The companies that run our computers",
+    "hosts": "The pages come from Vercel. Kitchen check-in records are kept in a database run by Supabase, in the United States. Like any website, both receive your phone's internet address when it connects. We don't add it to your records.",
+    "keepTitle": "How long things are kept",
+    "keep1": "On your phone: until you delete them or clear your browser's data.",
+    "keep2": "Kitchen check-in records: until you ask us to remove them, or the project ends.",
+    "removeTitle": "Removing your information",
+    "remove1": "To delete hours, open the entry in your hour log, tap Edit, then Delete.",
+    "remove2": "To remove everything HourProof saved on your phone, clear this site's data in your browser's settings.",
+    "remove3": "To remove kitchen check-in records, contact us and tell us the kitchen, the date and the first name you used. We can't look you up any other way.",
+    "contactLink": "How to contact us",
+    "notGov": "HourProof is a student project. It is not a government website."
   }
 }

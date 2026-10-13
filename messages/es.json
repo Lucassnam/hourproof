@@ -99,7 +99,8 @@
       "label": "{counted} de 80 horas este mes",
       "labelMet": "{counted} de 80 horas este mes. Listo este mes.",
       "labelPast": "{counted} de 80 horas en {month}",
-      "donePast": "Mes cumplido"
+      "donePast": "Mes cumplido",
+      "verifiedPart": "{verified} de ellas verificadas por una cocina."
     },
     "pace": {
       "on_track": "Va bien. A este ritmo llegará a {projected} horas.",
@@ -191,11 +192,49 @@
       "jobSearch": "La búsqueda de trabajo solo cuenta como parte de un programa de empleo. Su condado revisa de otra manera el trabajo por beneficios (workfare).",
       "report": "Si la regla le aplica y sus horas bajan a menos de 20 a la semana en promedio (80 al mes), avísele a su condado en un plazo de 10 días."
     },
-    "proofLink": "Sus comprobantes"
+    "proofLink": "Sus comprobantes",
+    "legend": {
+      "verified": "Verificadas por una cocina",
+      "own": "De su propio registro"
+    },
+    "shift": {
+      "confirmed": "Verificado por {name}",
+      "confirmedNoName": "Verificado por la cocina",
+      "pending": "Esperando que la cocina lo confirme",
+      "open": "Registró su entrada. Todavía no cuenta.",
+      "rejected": "No aceptado: {reason}",
+      "rejectedNoReason": "No aceptado por la cocina",
+      "autoClosed": "Se cerró solo después de 8 horas. La cocina pondrá la hora real de salida.",
+      "duplicate": "Es posible que haya anotado dos veces un turno de cocina el {date}. Si es así, borre su propia entrada.",
+      "syncFailed": "No se pudieron actualizar sus turnos de cocina. Estos son los últimos guardados en este teléfono.",
+      "fromKitchen": "Los turnos de cocina vienen de los registros de la cocina. Solo la cocina puede cambiarlos."
+    },
+    "safe": {
+      "title": "Mantenga sus horas a salvo",
+      "why": "Si pierde este teléfono, o se borran los datos del navegador, sus horas se pierden. Guarde una copia de vez en cuando.",
+      "save": "Guardar una copia de mis horas",
+      "saved": "Se guardó una copia con {n, plural, one {# entrada} other {# entradas}}.",
+      "nothingToSave": "Todavía no hay horas para guardar.",
+      "saveError": "No se pudo hacer la copia. Inténtelo de nuevo.",
+      "restore": "Restaurar desde una copia",
+      "restoreLabel": "Elija una copia guardada de sus horas para restaurar",
+      "restored": "Se {n, plural, one {agregó # entrada} other {agregaron # entradas}} de la copia.",
+      "restoredAlready": "{n, plural, one {# ya estaba} other {# ya estaban}} aquí.",
+      "restoredFailed": "{n, plural, one {# entrada no se pudo} other {# entradas no se pudieron}} agregar.",
+      "notABackup": "Ese archivo no es una copia de horas de HourProof.",
+      "newerVersion": "Esa copia la hizo una versión más nueva de HourProof. Abra la versión más nueva de HourProof e inténtelo de nuevo.",
+      "notIncluded": "Las fotos de comprobantes y los turnos de cocina no están en la copia. Los turnos de cocina se quedan con la cocina.",
+      "iosTitle": "En un iPhone o iPad",
+      "ios": "Agregue HourProof a su pantalla de inicio: toque Compartir y luego Agregar a inicio. Safari puede borrar las horas guardadas en un sitio web que no ha abierto en una semana. La app de la pantalla de inicio las conserva.",
+      "iosMove": "Es posible que las horas que ya guardó aquí no pasen solas a la app de la pantalla de inicio. Guarde una copia aquí primero y luego restáurela allá.",
+      "install": "Agregar HourProof a este teléfono",
+      "installWhy": "Se abre como una app, y es menos probable que su teléfono borre las horas guardadas."
+    }
   },
   "demo": {
     "banner": "Demostración: datos de ejemplo, no son suyos.",
-    "exit": "Salir de la demostración"
+    "exit": "Salir de la demostración",
+    "kitchen": "Cocina comunitaria"
   },
   "checkin": {
     "title": "Registrar entrada",
@@ -374,9 +413,76 @@
       "preparing": "Preparando el PDF…",
       "error": "No se pudo preparar el PDF. Inténtelo de nuevo o use el formulario en blanco.",
       "next": "Después: pida al representante de la organización que revise las horas, llene su parte y firme. Luego agregue una foto del formulario firmado en la sección de Voluntariado.",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "confirmed": "Un supervisor de {place} ({names}) verificó {hours} de estas en HourProof.",
+      "confirmedNoName": "Un supervisor de {place} verificó {hours} de estas en HourProof.",
+      "stillNeeded": "Su condado todavía necesita un formulario firmado como el CF 888, o que la organización misma se lo diga. Pregunte a su condado si acepta un registro de HourProof."
     },
     "backToLog": "Volver a su registro de horas",
     "savedOnPhone": "Sus archivos se guardan solo en este teléfono."
+  },
+  "site": {
+    "footer": {
+      "label": "Acerca de este sitio",
+      "about": "Acerca de HourProof",
+      "privacy": "Privacidad"
+    }
+  },
+  "about": {
+    "title": "Acerca de HourProof",
+    "what": "HourProof ayuda a las personas con CalFresh en California con la regla de trabajo: a ver si es probable que les aplique, a llevar la cuenta de sus horas y a tener listos sus comprobantes para el condado.",
+    "notGovTitle": "No es un sitio web del gobierno",
+    "notGov": "HourProof no es CalFresh, ni su condado, ni el Estado de California, y no tiene relación con ellos. No puede ver su caso. Nada de lo que hay aquí es una decisión ni un consejo legal. Solo su condado puede decidir si la regla le aplica a usted y si sus horas cuentan.",
+    "rulesTitle": "De dónde vienen las reglas",
+    "rules": "Las preguntas y las reglas siguen las instrucciones del estado para los condados (CDSS All County Letter 26-29) y el manual del Condado de Santa Clara. Cada pregunta del cuestionario tiene un enlace a su fuente.",
+    "rulesLink": "Lea la carta del estado (PDF, en inglés)",
+    "notReviewed": "Ningún trabajador de casos ni de ayuda legal ha revisado todavía nuestra lectura de las reglas. Hasta que alguien lo haga, HourProof nunca le dice que usted está exento. Le dice que puede estarlo y que pregunte a su condado.",
+    "reviewed": "Nuestra lectura de las reglas fue revisada por {reviewer} el {date}.",
+    "whoTitle": "Quién lo hizo",
+    "who": "HourProof es un proyecto de estudiantes, hecho para el Congressional App Challenge de 2026 en el Distrito 16 del Congreso de California. Es gratis y no tiene anuncios.",
+    "codeLink": "Vea el código en GitHub",
+    "ai": "Gran parte del código, y el primer borrador del texto en español, se escribieron con herramientas de inteligencia artificial. Con el código se guarda un registro de lo que hicieron.",
+    "aiLink": "Lea el registro del uso de IA (en inglés)",
+    "spanish": "Un hablante nativo todavía no ha revisado el texto en español. Si algo se lee mal, por favor díganoslo.",
+    "contactTitle": "Contacto",
+    "contactBenefits": "Si tiene preguntas sobre sus beneficios o su caso, llame al {county}:",
+    "contactApp": "Si tiene preguntas sobre HourProof, o para pedirnos que borremos sus registros de entrada en una cocina:",
+    "contactEmail": "Escriba a {email}",
+    "contactGithub": "Escríbanos en GitHub",
+    "privacyLink": "Cómo maneja HourProof su información",
+    "home": "Volver al inicio"
+  },
+  "privacy": {
+    "title": "Privacidad",
+    "updated": "Última actualización: 13 de octubre de 2026.",
+    "short": "En resumen: las horas que usted anota y los documentos que agrega se quedan en su teléfono. La única información personal que HourProof recibe es la que usted envía cuando registra su entrada en una cocina.",
+    "onPhoneTitle": "Lo que se queda en su teléfono",
+    "onPhone1": "Sus respuestas a las preguntas del cuestionario. Se borran cuando cierra la pestaña.",
+    "onPhone2": "Las horas que anota, con el lugar o la nota que escriba.",
+    "onPhone3": "Las fotos y los archivos PDF que agrega como comprobante.",
+    "onPhone4": "Lo que escribe en un formulario CF 888. Se usa para hacer el PDF en su teléfono y no se guarda.",
+    "onPhone5": "Una copia de sus horas, si guarda una. Va a donde usted la guarde.",
+    "onPhoneNote": "Como todo esto se queda solo en su teléfono, nadie más puede recuperarlo por usted. Si borra los datos del navegador, o pierde el teléfono, se pierde.",
+    "sentTitle": "Lo que se envía a HourProof",
+    "sent1": "El idioma que eligió (inglés o español), en una cookie, para que las páginas lleguen en ese idioma.",
+    "sent2": "Cuando registra su entrada en una cocina: el nombre o apodo que escribe, las horas de entrada y de salida, en qué cocina, y un número al azar que identifica su teléfono. No hay cuenta, y no pedimos correo electrónico ni número de teléfono.",
+    "sent3": "Los supervisores de esa cocina ven su nombre y sus horas de entrada y salida, para poder confirmarlas. Con el turno se guardan el nombre del supervisor y, si no acepta un turno, el motivo.",
+    "sent4": "Después de registrar su entrada en una cocina, su registro de horas le pide a HourProof sus turnos de cocina para mostrarlos.",
+    "neverTitle": "Lo que HourProof nunca recibe",
+    "never1": "Su nombre completo, fecha de nacimiento, dirección, número de caso ni número de Seguro Social.",
+    "never2": "Sus talones de pago ni ningún otro documento.",
+    "never3": "Su ubicación.",
+    "neverNote": "No hay anuncios ni rastreo. No vendemos su información, y no se la damos a nadie más que a la cocina donde registró su entrada.",
+    "hostsTitle": "Las empresas que operan nuestras computadoras",
+    "hosts": "Las páginas vienen de Vercel. Los registros de entrada en cocinas se guardan en una base de datos operada por Supabase, en Estados Unidos. Como cualquier sitio web, las dos reciben la dirección de internet de su teléfono cuando se conecta. Nosotros no la agregamos a sus registros.",
+    "keepTitle": "Cuánto tiempo se guarda",
+    "keep1": "En su teléfono: hasta que usted lo borre o borre los datos del navegador.",
+    "keep2": "Registros de entrada en cocinas: hasta que usted nos pida borrarlos, o hasta que termine el proyecto.",
+    "removeTitle": "Cómo borrar su información",
+    "remove1": "Para borrar horas, abra la entrada en su registro de horas, toque Editar y luego Borrar.",
+    "remove2": "Para borrar todo lo que HourProof guardó en su teléfono, borre los datos de este sitio en la configuración de su navegador.",
+    "remove3": "Para borrar registros de entrada en cocinas, escríbanos y díganos la cocina, la fecha y el nombre que usó. No tenemos otra forma de encontrarle.",
+    "contactLink": "Cómo comunicarse con nosotros",
+    "notGov": "HourProof es un proyecto de estudiantes. No es un sitio web del gobierno."
   }
 }
