@@ -88,6 +88,44 @@ describe('summarizeMonth', () => {
   })
 })
 
+describe('summarizeMonth: ShiftCred (Phase 3)', () => {
+  const shiftEntry = (over: Partial<Entry> = {}): Entry =>
+    e('2026-10-05', 'volunteer', 3, { source: 'shift', verification: 'confirmed', shiftId: 's1', ...over })
+
+  test('verifiedCounted sums only confirmed shift entries', () => {
+    const s = summarizeMonth(
+      [shiftEntry(), shiftEntry({ id: 'e-other', hours: 2, verification: 'pending', shiftId: 's2' }), e('2026-10-06', 'work', 5)],
+      '2026-10',
+      '2026-10-10',
+    )
+    expect(s.verifiedCounted).toBe(3)
+    expect(s.counted).toBe(10) // 3 confirmed + 2 pending + 5 work
+  })
+
+  test('counted includes pending and confirmed, and excludes open and rejected', () => {
+    const s = summarizeMonth(
+      [
+        shiftEntry({ id: 'e-confirmed' }),
+        shiftEntry({ id: 'e-pending', hours: 2, verification: 'pending' }),
+        shiftEntry({ id: 'e-open', hours: 4, verification: 'open' }),
+        shiftEntry({ id: 'e-rejected', hours: 6, verification: 'rejected' }),
+      ],
+      '2026-10',
+      '2026-10-10',
+    )
+    expect(s.counted).toBe(5) // 3 confirmed + 2 pending; open and rejected don't count
+    expect(s.byType.volunteer).toBe(5) // excluded entries are out of byType too
+    expect(s.verifiedCounted).toBe(3)
+  })
+
+  test('an existing self-only month is unchanged: verifiedCounted is 0', () => {
+    const s = summarizeMonth([e('2026-10-02', 'work', 30), e('2026-10-03', 'volunteer', 20), e('2026-10-04', 'program', 10)], '2026-10', '2026-10-15')
+    expect(s.counted).toBe(60)
+    expect(s.remaining).toBe(20)
+    expect(s.verifiedCounted).toBe(0)
+  })
+})
+
 describe('validateEntry', () => {
   test('rejects bad hours', () => {
     expect(validateEntry(e('2026-10-01', 'work', 0), [])).toContain('bad_hours')
