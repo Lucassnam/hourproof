@@ -208,6 +208,27 @@
       "duplicate": "Es posible que haya anotado dos veces un turno de cocina el {date}. Si es así, borre su propia entrada.",
       "syncFailed": "No se pudieron actualizar sus turnos de cocina. Estos son los últimos guardados en este teléfono.",
       "fromKitchen": "Los turnos de cocina vienen de los registros de la cocina. Solo la cocina puede cambiarlos."
+    },
+    "safe": {
+      "title": "Mantenga sus horas a salvo",
+      "why": "Sus horas se guardan solo en este teléfono. Si pierde el teléfono, o se borran los datos del navegador, se pierden. Guarde una copia de vez en cuando.",
+      "save": "Guardar una copia de mis horas",
+      "saved": "Se guardó una copia con {n, plural, one {# entrada} other {# entradas}}.",
+      "nothingToSave": "Todavía no hay horas para guardar.",
+      "saveError": "No se pudo hacer la copia. Inténtelo de nuevo.",
+      "restore": "Restaurar desde una copia",
+      "restoreLabel": "Elija una copia guardada de sus horas para restaurar",
+      "restored": "Se {n, plural, one {agregó # entrada} other {agregaron # entradas}} de la copia.",
+      "restoredAlready": "{n, plural, one {# ya estaba} other {# ya estaban}} aquí.",
+      "restoredFailed": "{n, plural, one {# entrada no se pudo} other {# entradas no se pudieron}} agregar.",
+      "notABackup": "Ese archivo no es una copia de horas de HourProof.",
+      "newerVersion": "Esa copia la hizo una versión más nueva de HourProof. Abra la versión más nueva de HourProof e inténtelo de nuevo.",
+      "notIncluded": "Las fotos de comprobantes y los turnos de cocina no están en la copia. Los turnos de cocina se quedan con la cocina.",
+      "iosTitle": "En un iPhone o iPad",
+      "ios": "Agregue HourProof a su pantalla de inicio: toque Compartir y luego Agregar a inicio. Safari puede borrar las horas guardadas en un sitio web que no ha abierto en una semana. La app de la pantalla de inicio las conserva.",
+      "iosMove": "Es posible que las horas que ya guardó aquí no pasen solas a la app de la pantalla de inicio. Guarde una copia aquí primero y luego restáurela allá.",
+      "install": "Agregar HourProof a este teléfono",
+      "installWhy": "Se abre como una app, y es menos probable que su teléfono borre las horas guardadas."
     }
   },
   "demo": {

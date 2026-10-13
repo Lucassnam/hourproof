@@ -13,7 +13,9 @@ import { getMode, openStore, type EntryStore, type Mode } from "@/lib/hours/stor
 import { summarizeMonth } from "@/lib/hours/summarize";
 import type { Entry, MonthSummary } from "@/lib/hours/types";
 import { useKitchenShifts } from "@/lib/shifts/useKitchenShifts";
+import { requestPersistence } from "@/lib/storage/persist";
 import { EntryForm } from "./EntryForm";
+import { KeepSafe } from "./KeepSafe";
 import { Ring } from "./Ring";
 import { formatDay, formatMonth, formatNumber } from "./format";
 import { doesNotCount, mayCountPartly, notesFor } from "./notes";
@@ -181,6 +183,9 @@ export function HourLog() {
           headingRef={headingRef}
           onCancel={closeForm}
           onSaved={async (entry) => {
+            // Real hours now live on this phone: ask the browser not to clear them when it
+            // runs low on space. Not awaited, and never in the demo.
+            if (loaded.mode === "real") void requestPersistence();
             await reload(loaded.store);
             setMonth(monthOf(entry.date));
             setStatus(`${t("saved")} ${t(`types.${entry.type}.label`)}, ${hoursText(entry.hours)}, ${formatDay(locale, entry.date)}.`);
@@ -418,6 +423,8 @@ export function HourLog() {
           <li className="text-lg leading-snug">{t("rule.report")}</li>
         </ul>
       </details>
+
+      {loaded && loaded.mode === "real" && <KeepSafe store={loaded.store} today={today} onRestored={() => reload(loaded.store)} />}
 
       <footer className="mt-2 flex flex-col gap-3 border-t-2 border-border pt-4">
         <p className="flex items-start gap-2 text-lg text-text-muted">

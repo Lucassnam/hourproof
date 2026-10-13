@@ -208,6 +208,27 @@
       "duplicate": "You may have logged a kitchen shift twice on {date}. If so, delete your own entry.",
       "syncFailed": "Couldn't update your kitchen shifts. These are the last ones saved on this phone.",
       "fromKitchen": "Kitchen shifts come from the kitchen's records. Only the kitchen can change them."
+    },
+    "safe": {
+      "title": "Keep your hours safe",
+      "why": "Your hours are saved only on this phone. If the phone is lost, or its browser data is cleared, they are gone. Save a copy from time to time.",
+      "save": "Save a copy of my hours",
+      "saved": "Saved a copy with {n, plural, one {# entry} other {# entries}}.",
+      "nothingToSave": "There are no hours to save yet.",
+      "saveError": "Couldn't make the copy. Please try again.",
+      "restore": "Restore from a copy",
+      "restoreLabel": "Choose a saved copy of your hours to restore",
+      "restored": "Added {n, plural, one {# entry} other {# entries}} from the copy.",
+      "restoredAlready": "{n, plural, one {# was} other {# were}} already here.",
+      "restoredFailed": "{n, plural, one {# entry} other {# entries}} couldn't be added.",
+      "notABackup": "That file isn't a copy of HourProof hours.",
+      "newerVersion": "That copy was made by a newer HourProof. Open the newest HourProof and try again.",
+      "notIncluded": "Proof photos and kitchen shifts are not in the copy. Kitchen shifts stay with the kitchen.",
+      "iosTitle": "On an iPhone or iPad",
+      "ios": "Add HourProof to your Home Screen: tap Share, then Add to Home Screen. Safari may erase hours saved on a website it hasn't opened in a week. The Home Screen app keeps them.",
+      "iosMove": "Hours already saved here may not move to the Home Screen app on their own. Save a copy here first, then restore it there.",
+      "install": "Add HourProof to this phone",
+      "installWhy": "It opens like an app, and your phone is less likely to clear its saved hours."
     }
   },
   "demo": {
