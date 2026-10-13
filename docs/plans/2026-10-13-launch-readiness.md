@@ -47,8 +47,8 @@ Written 2026-10-13 from an audit of `main` at `2a0d4b8`. Scope and order were ap
 - `src/lib/proof/files.ts` stores bytes plus the MIME type. Files saved before this change (stored as a `Blob`) still open.
 
 ### 5. Browser tests in CI
-- `playwright.config.ts`: a second project, WebKit at 390×844 with touch.
-- The five assertions that are Chromium- or viewport-specific are made browser-neutral or skipped on WebKit with the reason.
+- `playwright.config.ts`: a second project, WebKit as a phone (touch, mobile viewport, an iPhone user agent) at the same 360×740 screen as Chromium, so the layout assertions mean the same thing in both.
+- The three tests that can't run on WebKit (granting clipboard permission; walking the page with the Tab key, twice) are skipped there with the reason.
 - `.github/workflows/ci.yml`: an e2e job that installs both browsers and runs the suite.
 
 ### 6. Paperwork
@@ -80,3 +80,9 @@ npm run build && npm run measure
 npm run e2e            # Chromium and WebKit, mock backend
 ```
 Plus one manual pass in a browser against the hosted Supabase project: check in, check out, confirm, then open `/log` and `/proof`.
+
+## What execution found (2026-10-13)
+
+- **Run against the hosted project.** The first pass failed: after a supervisor confirmed, the volunteer's open log still said "Waiting for the kitchen to confirm". The data was right; the log asked the server for shifts once, when it opened, and the dashboard shows "Confirmed" a moment before the server finishes saving. The log now asks again when the phone comes back to the page, and every 30 seconds while a shift is waiting. The mock-backed tests could not see this, because they confirm and then reload.
+- **Page weight.** `/`, `/screener` and `/log` measure 155, 153 and 162 KB, inside the 200 KB budget. The check-in page measures 220 KB with the real Supabase settings, because it loads the Supabase client. That was already true before this branch and is not fixed here.
+- **Not verified:** anything on a physical iPhone (the Home Screen hint, the saved-copy download, storage persistence), and whether Chrome on Android offers its install prompt for this site.
