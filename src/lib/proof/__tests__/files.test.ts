@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeEach, describe, expect, test } from 'vitest'
-import { MAX_FILE_BYTES, ProofFileError, checkFile, closeProofStoresForTests, openProofStore } from '../files'
+import { MAX_FILE_BYTES, ProofFileError, checkFile, closeProofStoresForTests, fileBlob, openProofStore, type ProofFile } from '../files'
 
 beforeEach(async () => {
   await closeProofStoresForTests()
@@ -38,5 +38,35 @@ describe('proof file store', () => {
     expect(checkFile({ type: 'application/pdf', size: MAX_FILE_BYTES + 1 })).toBe('too_big')
     expect(checkFile({ type: '', size: 10 })).toBe('bad_type')
     expect(await store.list('2026-10')).toEqual([])
+  })
+
+  // WebKit refuses to put a File or Blob into IndexedDB in a private-style session (probed
+  // 2026-10-09: the transaction errors), and accepts an ArrayBuffer. So the record holds the
+  // bytes and the type, and a Blob is only made when the person opens the file.
+  test('stores the bytes and the type, never the File itself', async () => {
+    const store = await openProofStore('real')
+    const added = await store.add(pdf('stub.pdf'), '2026-10', 'work')
+    const [stored] = await store.list('2026-10')
+    expect(stored.bytes).toBeInstanceOf(ArrayBuffer)
+    expect('blob' in stored).toBe(false)
+    expect(stored.mime).toBe('application/pdf')
+    expect(stored.size).toBe(8)
+    const blob = fileBlob(added)
+    expect(blob.type).toBe('application/pdf')
+    expect(await blob.text()).toBe('%PDF-1.4')
+  })
+
+  test('a file saved before this change (stored as a Blob) still opens', async () => {
+    const legacy = {
+      id: 'old',
+      month: '2026-09',
+      type: 'work',
+      name: 'old.pdf',
+      mime: 'application/pdf',
+      size: 8,
+      addedAt: '2026-09-30T00:00:00.000Z',
+      blob: new Blob(['%PDF-1.4'], { type: 'application/pdf' }),
+    } as unknown as ProofFile
+    expect(await fileBlob(legacy).text()).toBe('%PDF-1.4')
   })
 })

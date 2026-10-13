@@ -8,7 +8,7 @@ import { MonthButton } from "@/components/ui/MonthButton";
 import { addMonths, californiaDate, monthOf } from "@/lib/dates";
 import { getMode, openStore } from "@/lib/hours/store";
 import type { ActivityType, Entry } from "@/lib/hours/types";
-import { ProofFileError, openProofStore, type ProofFile, type ProofStore } from "@/lib/proof/files";
+import { ProofFileError, fileBlob, openProofStore, type ProofFile, type ProofStore } from "@/lib/proof/files";
 import { proofGroups, volunteerPlaces } from "@/lib/proof/groups";
 import { formatMonth, formatNumber } from "@/app/log/format";
 import { Cf888Form } from "./Cf888Form";
@@ -239,7 +239,7 @@ export function ProofDocuments() {
 
 // Opens the stored file in a new tab from a short-lived object URL (nothing is uploaded).
 function openFile(file: ProofFile) {
-  const url = URL.createObjectURL(file.blob);
+  const url = URL.createObjectURL(fileBlob(file));
   const link = document.createElement("a");
   link.href = url;
   link.target = "_blank";
