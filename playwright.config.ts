@@ -35,5 +35,23 @@ export default defineConfig({
   // The preset is spread first and the phone viewport set after it: the Desktop Chrome
   // preset carries its own 1280x720 viewport, which used to override the 360px one above
   // for every spec (Task 4 fix round 1, ruling 4).
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 360, height: 740 } } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 360, height: 740 } } },
+    // The engine every iPhone browser uses, as a phone: touch, a mobile viewport and an
+    // iPhone's user agent (which the Home Screen hint reads). Same 360x740 screen, so the
+    // layout assertions mean the same thing in both projects. Not the stock "iPhone" device
+    // preset: that one brings its own, larger viewport.
+    {
+      name: "webkit",
+      use: {
+        browserName: "webkit",
+        viewport: { width: 360, height: 740 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+      },
+    },
+  ],
 });
