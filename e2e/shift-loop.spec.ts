@@ -206,3 +206,41 @@ test("while a shift is waiting, an open log asks again every 30 seconds, and sto
   expect(calls).toEqual([]);
 });
 
+
+// The iPhone gap: the camera opens the poster in Safari, and the Home Screen app has its own
+// storage. Here the two are two browser contexts on the same mock world.
+test("a link code from the check-in page lets another browser's log show this browser's kitchen shifts", async ({
+  page,
+  browser,
+}, testInfo) => {
+  await workAShift(page);
+  await page.getByText("See these hours in the Home Screen app").click();
+  await page.getByRole("button", { name: "Get a link code" }).click();
+  const shown = (await page.getByTestId("link-code").textContent()) ?? "";
+  expect(shown).toMatch(/^[2-9A-HJKMNP-Z]{4} [2-9A-HJKMNP-Z]{4}$/);
+
+  const homeScreen = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 360, height: 740 } });
+  await joinNamespace(homeScreen, ns);
+  const app = await homeScreen.newPage();
+  await app.clock.setFixedTime(NOW);
+  // The same server time as the Safari page, where the code was made (it lives 15 minutes).
+  await serverTimeIs(app, NOW);
+  await app.goto("/log");
+  await expect(app.getByRole("heading", { level: 1, name: "Your hours" })).toBeVisible();
+  await expect(ring(app)).toHaveAttribute("aria-label", "0 of 80 hours this month");
+
+  await app.getByTestId("link-device").getByText("Kitchen hours from another browser").click();
+  await app.getByLabel("Link code").fill("2222 2222");
+  await app.getByRole("button", { name: "Link", exact: true }).click();
+  await expect(app.getByRole("alert").filter({ hasText: "That code didn't work." })).toBeVisible();
+
+  await app.getByLabel("Link code").fill(shown.toLowerCase());
+  await app.getByRole("button", { name: "Link", exact: true }).click();
+  await expect(app.getByText("Linked. Kitchen shifts from that browser show here now.")).toBeVisible();
+  await expect(ring(app)).toHaveAttribute("aria-label", "3 of 80 hours this month");
+  await expect(savedRows(app).first()).toContainText(KITCHEN);
+  // And after a reload, without the code: the link is on the server.
+  await app.reload();
+  await expect(ring(app)).toHaveAttribute("aria-label", "3 of 80 hours this month");
+  await homeScreen.close();
+});

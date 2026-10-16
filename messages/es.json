@@ -223,12 +223,24 @@
       "restoredFailed": "{n, plural, one {# entrada no se pudo} other {# entradas no se pudieron}} agregar.",
       "notABackup": "Ese archivo no es una copia de horas de HourProof.",
       "newerVersion": "Esa copia la hizo una versión más nueva de HourProof. Abra la versión más nueva de HourProof e inténtelo de nuevo.",
-      "notIncluded": "Las fotos de comprobantes y los turnos de cocina no están en la copia. Los turnos de cocina se quedan con la cocina.",
+      "notIncluded": "Las fotos de comprobantes y los turnos de cocina no están en la copia. Los turnos de cocina se quedan con la cocina. Para verlos en otro navegador o en la app de la pantalla de inicio, use “Horas de cocina de otro navegador”.",
       "iosTitle": "En un iPhone o iPad",
       "ios": "Agregue HourProof a su pantalla de inicio: toque Compartir y luego Agregar a inicio. Safari puede borrar las horas guardadas en un sitio web que no ha abierto en una semana. La app de la pantalla de inicio las conserva.",
       "iosMove": "Es posible que las horas que ya guardó aquí no pasen solas a la app de la pantalla de inicio. Guarde una copia aquí primero y luego restáurela allá.",
       "install": "Agregar HourProof a este teléfono",
       "installWhy": "Se abre como una app, y es menos probable que su teléfono borre las horas guardadas."
+    },
+    "link": {
+      "title": "Horas de cocina de otro navegador",
+      "why": "¿Registró su entrada en una cocina escaneando su cartel? Eso pasó en su navegador, no aquí. En la página que ve después de registrar su entrada, abra “Ver estas horas en la app de la pantalla de inicio”, obtenga un código y escríbalo aquí.",
+      "label": "Código para vincular",
+      "privacy": "Al vincular, se le piden a HourProof los turnos de cocina registrados desde ese navegador. No se envía nada de este registro.",
+      "submit": "Vincular",
+      "linking": "Vinculando…",
+      "ok": "Vinculado. Los turnos de cocina de ese navegador ya aparecen aquí.",
+      "badCode": "Ese código no funcionó. Un código funciona una vez, durante 15 minutos. Obtenga uno nuevo e inténtelo de nuevo.",
+      "locked": "Demasiados códigos equivocados. Espere 15 minutos y vuelva a intentarlo.",
+      "error": "No hay señal. No se vinculó nada. Inténtelo de nuevo."
     }
   },
   "demo": {
@@ -273,6 +285,15 @@
       "badName": "Use de 1 a 40 letras o números para su nombre.",
       "notCheckedIn": "No tiene una entrada abierta aquí. Puede que su turno ya se haya cerrado.",
       "generic": "Algo salió mal. Intente de nuevo."
+    },
+    "link": {
+      "title": "Ver estas horas en la app de la pantalla de inicio",
+      "why": "Su cámara abre los carteles de las cocinas aquí, en su navegador. Si también usa HourProof desde su pantalla de inicio, vincúlela una vez para que también muestre estos registros.",
+      "get": "Obtener un código",
+      "getting": "Obteniendo un código…",
+      "codeLabel": "Su código para vincular",
+      "how": "Abra HourProof desde su pantalla de inicio. En Sus horas, abra “Horas de cocina de otro navegador” y escriba este código. Funciona una vez, durante 15 minutos.",
+      "error": "No hay señal. Inténtelo de nuevo."
     }
   },
   "kitchen": {
@@ -462,7 +483,7 @@
   },
   "privacy": {
     "title": "Privacidad",
-    "updated": "Última actualización: 13 de octubre de 2026.",
+    "updated": "Última actualización: 16 de octubre de 2026.",
     "short": "En resumen: las horas que usted anota y los documentos que agrega se quedan en su teléfono. La única información personal que HourProof recibe es la que usted envía cuando registra su entrada en una cocina.",
     "onPhoneTitle": "Lo que se queda en su teléfono",
     "onPhone1": "Sus respuestas a las preguntas del cuestionario. Se borran cuando cierra la pestaña.",
@@ -491,6 +512,7 @@
     "remove2": "Para borrar todo lo que HourProof guardó en su teléfono, borre los datos de este sitio en la configuración de su navegador.",
     "remove3": "Para borrar registros de entrada en cocinas, escríbanos y díganos la cocina, la fecha y el nombre que usó. No tenemos otra forma de encontrarle.",
     "contactLink": "Cómo comunicarse con nosotros",
-    "notGov": "HourProof es un proyecto de estudiantes. No es un sitio web del gobierno."
+    "notGov": "HourProof es un proyecto de estudiantes. No es un sitio web del gobierno.",
+    "sent5": "Si vincula dos navegadores con un código, HourProof guarda que sus dos números al azar van juntos, para que cada uno pueda mostrar los turnos de cocina del otro."
   }
 }

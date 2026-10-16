@@ -223,12 +223,24 @@
       "restoredFailed": "{n, plural, one {# entry} other {# entries}} couldn't be added.",
       "notABackup": "That file isn't a copy of HourProof hours.",
       "newerVersion": "That copy was made by a newer HourProof. Open the newest HourProof and try again.",
-      "notIncluded": "Proof photos and kitchen shifts are not in the copy. Kitchen shifts stay with the kitchen.",
+      "notIncluded": "Proof photos and kitchen shifts are not in the copy. Kitchen shifts stay with the kitchen. To see them in another browser or the Home Screen app, use “Kitchen hours from another browser”.",
       "iosTitle": "On an iPhone or iPad",
       "ios": "Add HourProof to your Home Screen: tap Share, then Add to Home Screen. Safari may erase hours saved on a website it hasn't opened in a week. The Home Screen app keeps them.",
       "iosMove": "Hours already saved here may not move to the Home Screen app on their own. Save a copy here first, then restore it there.",
       "install": "Add HourProof to this phone",
       "installWhy": "It opens like an app, and your phone is less likely to clear its saved hours."
+    },
+    "link": {
+      "title": "Kitchen hours from another browser",
+      "why": "Checked in at a kitchen by scanning its poster? That happened in your browser, not here. On the page you see after checking in, open “See these hours in the Home Screen app”, get a code, and type it here.",
+      "label": "Link code",
+      "privacy": "Linking asks HourProof for the kitchen shifts checked in from that browser. Nothing from this log is sent.",
+      "submit": "Link",
+      "linking": "Linking…",
+      "ok": "Linked. Kitchen shifts from that browser show here now.",
+      "badCode": "That code didn't work. A code works once, for 15 minutes. Get a new one and try again.",
+      "locked": "Too many wrong codes. Wait 15 minutes, then try again.",
+      "error": "No signal. Nothing was linked. Try again."
     }
   },
   "demo": {
@@ -273,6 +285,15 @@
       "badName": "Use 1 to 40 letters or numbers for your name.",
       "notCheckedIn": "You're not checked in here. Your shift may have closed already.",
       "generic": "Something went wrong. Try again."
+    },
+    "link": {
+      "title": "See these hours in the Home Screen app",
+      "why": "Your camera opens kitchen posters here, in your browser. If you also use HourProof from your Home Screen, link it once so it shows these check-ins too.",
+      "get": "Get a link code",
+      "getting": "Getting a code…",
+      "codeLabel": "Your link code",
+      "how": "Open HourProof from your Home Screen. In Your hours, open “Kitchen hours from another browser” and type this code. It works once, for 15 minutes.",
+      "error": "No signal. Try again."
     }
   },
   "kitchen": {
@@ -462,7 +483,7 @@
   },
   "privacy": {
     "title": "Privacy",
-    "updated": "Last updated October 13, 2026.",
+    "updated": "Last updated October 16, 2026.",
     "short": "The short version: the hours you log and the documents you add stay on your phone. The only personal information HourProof receives is what you send when you check in at a kitchen.",
     "onPhoneTitle": "What stays on your phone",
     "onPhone1": "Your answers to the screening questions. They are gone when you close the tab.",
@@ -491,6 +512,7 @@
     "remove2": "To remove everything HourProof saved on your phone, clear this site's data in your browser's settings.",
     "remove3": "To remove kitchen check-in records, contact us and tell us the kitchen, the date and the first name you used. We can't look you up any other way.",
     "contactLink": "How to contact us",
-    "notGov": "HourProof is a student project. It is not a government website."
+    "notGov": "HourProof is a student project. It is not a government website.",
+    "sent5": "If you link two browsers with a link code, HourProof saves that their two random IDs belong together, so each one can show the other's kitchen shifts."
   }
 }
