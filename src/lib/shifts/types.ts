@@ -17,7 +17,14 @@ export type Shift = {
   autoClosed: boolean
 }
 
-export type KitchenShift = Shift & { volunteerName: string }
+// decidedAt: when the kitchen confirmed or rejected it (null while undecided). The
+// dashboard offers Undo for 24 hours after it (undo_decision in the second migration).
+export type KitchenShift = Shift & { volunteerName: string; decidedAt: string | null }
+
+// What use_link_code says: linked, a code that isn't live (or is the caller's own), or too
+// many wrong codes in 15 minutes.
+export type LinkResult = 'ok' | 'bad_code' | 'locked'
+export type LinkCode = { code: string; expiresAt: string /* ISO instant */ }
 
 // The SQL's kitchen_by_code no longer returns a slug: the poster is public, and the
 // slug is half of what a PIN guesser needs (Task 2 fix round 1, ruling 1).
@@ -59,4 +66,12 @@ export interface ShiftBackend {
   ): Promise<KitchenShift>
   posterCode(slug: string, pin: string): Promise<string>
   rotateCode(slug: string, pin: string): Promise<string>
+  // Pending shifts dated before `before` (YYYY-MM-DD), at most 90 days back.
+  kitchenWaiting(slug: string, pin: string, before: string): Promise<KitchenShift[]>
+  // Back to pending, within 24 hours of the decision.
+  undoDecision(slug: string, pin: string, shiftId: string): Promise<KitchenShift>
+  // Device links: a code from one browser, typed into another, joins the two so myShifts
+  // returns the shifts checked in from either.
+  makeLinkCode(): Promise<LinkCode>
+  useLinkCode(code: string): Promise<LinkResult>
 }

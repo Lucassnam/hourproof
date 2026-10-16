@@ -462,3 +462,75 @@ describe('mock-server (contract tests mirroring the SQL test list)', () => {
     expect(myNov1.map((s) => s.id)).not.toContain(shift.id)
   })
 })
+
+// Mirrors test/sql/shiftcred.test.ts 21-26 (the second migration).
+describe('mock-server: waiting from earlier days, undo, device links', () => {
+  const NOW = new Date('2026-10-15T20:00:00.000Z') // 13:00 in California, Oct 15
+  const at = (iso: string) => new Date(iso).toISOString()
+
+  it('21. kitchenWaiting: this kitchen, pending, before the given day, within 90 days, oldest first; PIN-gated', () => {
+    const state = createMockState()
+    const k = state.kitchens[0]
+    const other = addKitchen(state, { slug: 'other-kitchen' })
+    const p5 = insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-10-10T19:00:00Z'), checkOut: at('2026-10-10T22:00:00Z'), status: 'pending' })
+    const p3 = insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-10-12T19:00:00Z'), checkOut: at('2026-10-12T21:00:00Z'), status: 'pending' })
+    insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-10-12T16:00:00Z'), checkOut: at('2026-10-12T17:00:00Z'), status: 'confirmed' })
+    insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-10-14T19:00:00Z'), checkOut: at('2026-10-14T20:00:00Z'), status: 'pending' })
+    insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-07-01T19:00:00Z'), checkOut: at('2026-07-01T20:00:00Z'), status: 'pending' })
+    insertShift(state, { userId: 'u', kitchenId: other.id, checkIn: at('2026-10-12T19:00:00Z'), checkOut: at('2026-10-12T20:00:00Z'), status: 'pending' })
+
+    const rows = handle(state, 'kitchenWaiting', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, before: '2026-10-14' }, undefined, NOW)
+    expect(rows.map((r) => r.id)).toEqual([p5.id, p3.id])
+    expect(errorCodeOf(() => handle(state, 'kitchenWaiting', { slug: DEFAULT_SLUG, pin: '000000', before: '2026-10-14' }, undefined, NOW))).toBe('bad_pin')
+  })
+
+  it('23. undoDecision: back to pending within 24 hours, end time kept; not twice; not after 24 hours', () => {
+    const state = createMockState()
+    const k = state.kitchens[0]
+    const s = insertShift(state, { userId: 'u', kitchenId: k.id, checkIn: at('2026-10-15T15:00:00Z'), checkOut: at('2026-10-15T18:00:00Z'), status: 'pending' })
+    const decided = handle(state, 'decide', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s.id, decision: 'confirm', supervisor: 'Maria' }, undefined, NOW)
+    expect(decided.decidedAt).toBe(NOW.toISOString())
+
+    const back = handle(state, 'undoDecision', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s.id }, undefined, new Date(NOW.getTime() + HOUR))
+    expect(back).toMatchObject({ status: 'pending', confirmedBy: null, reason: null, decidedAt: null, checkOut: at('2026-10-15T18:00:00Z') })
+    expect(errorCodeOf(() => handle(state, 'undoDecision', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s.id }, undefined, NOW))).toBe('not_found')
+
+    handle(state, 'decide', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s.id, decision: 'reject', supervisor: 'Maria', reason: 'No' }, undefined, NOW)
+    const later = new Date(NOW.getTime() + 25 * HOUR)
+    expect(errorCodeOf(() => handle(state, 'undoDecision', { slug: DEFAULT_SLUG, pin: DEFAULT_PIN, shiftId: s.id }, undefined, later))).toBe('not_found')
+    expect(findShift(state, s.id).status).toBe('rejected')
+  })
+
+  it('24-26. device links: shared shifts both ways, merged groups, single use, own/expired codes refused, 5 wrong codes lock for 15 minutes', () => {
+    const state = createMockState()
+    const [safari, app, third] = [randomUUID(), randomUUID(), randomUUID()]
+    const s1 = handle(state, 'checkIn', { code: DEFAULT_CODE, displayName: 'Ana' }, safari, NOW)
+    expect(handle(state, 'myShifts', { sinceDate: '2020-01-01' }, app, NOW)).toEqual([])
+
+    const { code, expiresAt } = handle(state, 'makeLinkCode', {}, safari, NOW)
+    expect(code).toMatch(/^[2-9A-HJKMNP-Z]{8}$/)
+    expect(Date.parse(expiresAt) - NOW.getTime()).toBe(15 * MIN)
+    expect(handle(state, 'useLinkCode', { code: code.toLowerCase() }, safari, NOW)).toBe('bad_code')
+    expect(handle(state, 'useLinkCode', { code: `${code.slice(0, 4)}-${code.slice(4)}` }, app, NOW)).toBe('ok')
+    expect(handle(state, 'useLinkCode', { code }, third, NOW)).toBe('bad_code')
+    expect(handle(state, 'myShifts', { sinceDate: '2020-01-01' }, app, NOW).map((s) => s.id)).toEqual([s1.id])
+
+    // A third browser joins through the app's code; then everyone sees everything.
+    const appCode = handle(state, 'makeLinkCode', {}, app, NOW).code
+    expect(handle(state, 'useLinkCode', { code: appCode }, third, NOW)).toBe('ok')
+    const s3 = handle(state, 'checkIn', { code: DEFAULT_CODE, displayName: 'Ana' }, third, NOW)
+    expect(handle(state, 'myShifts', { sinceDate: '2020-01-01' }, safari, NOW).map((s) => s.id).sort()).toEqual([s1.id, s3.id].sort())
+
+    const expired = handle(state, 'makeLinkCode', {}, safari, NOW).code
+    expect(handle(state, 'useLinkCode', { code: expired }, randomUUID(), new Date(NOW.getTime() + 16 * MIN))).toBe('bad_code')
+
+    const guesser = randomUUID()
+    const live = handle(state, 'makeLinkCode', {}, safari, NOW).code
+    for (let i = 0; i < 5; i++) expect(handle(state, 'useLinkCode', { code: '22222222' }, guesser, NOW)).toBe('bad_code')
+    expect(handle(state, 'useLinkCode', { code: live }, guesser, NOW)).toBe('locked')
+    const later = new Date(NOW.getTime() + 16 * MIN)
+    const fresh = handle(state, 'makeLinkCode', {}, safari, later).code
+    expect(handle(state, 'useLinkCode', { code: fresh }, guesser, later)).toBe('ok')
+    expect(errorCodeOf(() => handle(state, 'makeLinkCode', {}, undefined, NOW))).toBe('not_checked_in')
+  })
+})

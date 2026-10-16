@@ -9,6 +9,8 @@ import {
   type BackendErrorCode,
   type KitchenInfo,
   type KitchenShift,
+  type LinkCode,
+  type LinkResult,
   type Shift,
   type ShiftBackend,
 } from './types'
@@ -142,5 +144,21 @@ export class MockShiftBackend implements ShiftBackend {
 
   rotateCode(slug: string, pin: string): Promise<string> {
     return call('rotateCode', { slug, pin })
+  }
+
+  kitchenWaiting(slug: string, pin: string, before: string): Promise<KitchenShift[]> {
+    return call('kitchenWaiting', { slug, pin, before })
+  }
+
+  undoDecision(slug: string, pin: string, shiftId: string): Promise<KitchenShift> {
+    return call('undoDecision', { slug, pin, shiftId })
+  }
+
+  makeLinkCode(): Promise<LinkCode> {
+    return call('makeLinkCode', {})
+  }
+
+  useLinkCode(code: string): Promise<LinkResult> {
+    return call('useLinkCode', { code })
   }
 }

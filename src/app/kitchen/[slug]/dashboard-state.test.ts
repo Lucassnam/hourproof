@@ -26,6 +26,7 @@ function ks(over: Partial<KitchenShift>): KitchenShift {
     reason: null,
     autoClosed: false,
     volunteerName: 'Maria',
+    decidedAt: null,
     ...over,
   }
 }

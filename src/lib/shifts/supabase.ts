@@ -10,6 +10,8 @@ import {
   type BackendErrorCode,
   type KitchenInfo,
   type KitchenShift,
+  type LinkCode,
+  type LinkResult,
   type Shift,
   type ShiftBackend,
   type ShiftStatus,
@@ -31,7 +33,7 @@ type RawShiftRow = {
   reason: string | null
 }
 type RawNamedShiftRow = RawShiftRow & { kitchen_name: string }
-type RawKitchenShiftRow = RawNamedShiftRow & { volunteer_name: string }
+type RawKitchenShiftRow = RawNamedShiftRow & { volunteer_name: string; decided_at: string | null }
 
 function mapShift(row: RawShiftRow, kitchenName: string): Shift {
   return {
@@ -52,7 +54,7 @@ function mapNamedShift(row: RawNamedShiftRow): Shift {
 }
 
 function mapKitchenShift(row: RawKitchenShiftRow): KitchenShift {
-  return { ...mapNamedShift(row), volunteerName: row.volunteer_name }
+  return { ...mapNamedShift(row), volunteerName: row.volunteer_name, decidedAt: row.decided_at ?? null }
 }
 
 // Every RPC raises an exception whose message is exactly one of these codes
@@ -226,5 +228,43 @@ export class SupabaseShiftBackend implements ShiftBackend {
   async rotateCode(slug: string, pin: string): Promise<string> {
     const client = await getClient()
     return this.rpc<string>(client, 'rotate_code', { p_slug: slug, p_pin: pin })
+  }
+
+  // The functions below are in supabase/migrations/20261015000000_waiting_undo_links.sql.
+
+  async kitchenWaiting(slug: string, pin: string, before: string): Promise<KitchenShift[]> {
+    const client = await getClient()
+    const rows = await this.rpc<RawKitchenShiftRow[]>(client, 'kitchen_waiting', {
+      p_slug: slug,
+      p_pin: pin,
+      p_before: before,
+    })
+    return rows.map(mapKitchenShift)
+  }
+
+  async undoDecision(slug: string, pin: string, shiftId: string): Promise<KitchenShift> {
+    const client = await getClient()
+    const rows = await this.rpc<RawKitchenShiftRow[]>(client, 'undo_decision', {
+      p_slug: slug,
+      p_pin: pin,
+      p_shift_id: shiftId,
+    })
+    return mapKitchenShift(firstRow(rows))
+  }
+
+  async makeLinkCode(): Promise<LinkCode> {
+    const client = await getClient()
+    await this.ensureSession(client)
+    const rows = await this.rpc<Array<{ code: string; expires_at: string }>>(client, 'make_link_code', {})
+    const row = firstRow(rows)
+    return { code: row.code, expiresAt: row.expires_at }
+  }
+
+  async useLinkCode(code: string): Promise<LinkResult> {
+    const client = await getClient()
+    await this.ensureSession(client)
+    const result = await this.rpc<string>(client, 'use_link_code', { p_code: code })
+    if (result === 'ok' || result === 'bad_code' || result === 'locked') return result
+    throw new ShiftBackendError('network', `unexpected use_link_code result ${String(result)}`)
   }
 }
