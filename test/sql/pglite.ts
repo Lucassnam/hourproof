@@ -11,17 +11,23 @@
 //
 // Every helper runs one transaction per call, like PostgREST does per request,
 // so an RPC that raises rolls back everything it wrote, exactly as in production.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const MIGRATION_PATH = path.resolve(
-  here,
-  "../../supabase/migrations/20260927000000_shiftcred.sql",
-);
+export const MIGRATIONS_DIR = path.resolve(here, "../../supabase/migrations");
+export const MIGRATION_PATH = path.join(MIGRATIONS_DIR, "20260927000000_shiftcred.sql");
+
+/** Every migration, in the order `supabase db push` applies them (by file name). */
+export function migrationSql(): string[] {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => readFileSync(path.join(MIGRATIONS_DIR, f), "utf8"));
+}
 
 export type Db = PGlite;
 export type Tx = Transaction;
@@ -57,10 +63,10 @@ export async function freshStubDb(): Promise<Db> {
   return db;
 }
 
-/** A fresh database with the Supabase stub and the ShiftCred migration applied. */
+/** A fresh database with the Supabase stub and every migration applied. */
 export async function freshDb(): Promise<Db> {
   const db = await freshStubDb();
-  await db.exec(readFileSync(MIGRATION_PATH, "utf8"));
+  for (const sql of migrationSql()) await db.exec(sql);
   return db;
 }
 
