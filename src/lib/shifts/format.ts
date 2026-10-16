@@ -28,3 +28,17 @@ export function clockValue(iso: string): string {
 export function formatShiftHours(locale: string, hours: number): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(hours)
 }
+
+// "Friday, October 3" / "viernes, 3 de octubre": the California date of a shift's check-in.
+export function formatShiftDate(locale: string, iso: string): string {
+  return new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric', timeZone: CALIFORNIA }).format(
+    new Date(iso),
+  )
+}
+
+// The same for a YYYY-MM-DD California date (noon UTC, so no time zone moves it a day).
+export function formatDayDate(locale: string, date: string): string {
+  return new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(
+    new Date(`${date}T12:00:00Z`),
+  )
+}

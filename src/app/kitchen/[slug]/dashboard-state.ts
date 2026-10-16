@@ -4,13 +4,40 @@ import { addDays, californiaDate, californiaInstant } from "@/lib/dates";
 import { needsCorrection, shiftHours, shiftLogDate } from "@/lib/shifts/rules";
 import type { KitchenShift } from "@/lib/shifts/types";
 
-export type DayKey = "today" | "yesterday";
+// Today, yesterday, or a day the supervisor picked (YYYY-MM-DD).
+export type DayKey = "today" | "yesterday" | (string & {});
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // The California date the dashboard asks for. "Yesterday" is the previous calendar day,
 // not 24 hours ago (which, on a 25-hour DST day, can still be today).
 export function dayDate(day: DayKey, now: Date = new Date()): string {
   const today = californiaDate(now);
-  return day === "today" ? today : addDays(today, -1);
+  if (day === "today") return today;
+  if (day === "yesterday") return addDays(today, -1);
+  return ISO_DATE.test(day) ? day : today;
+}
+
+// The key for a date from the "Another day" picker: today and yesterday keep their own
+// buttons pressed; a future or malformed date is refused (null).
+export function pickedDay(date: string, now: Date = new Date()): DayKey | null {
+  if (!ISO_DATE.test(date)) return null;
+  const today = californiaDate(now);
+  if (date > today) return null;
+  if (date === today) return "today";
+  if (date === addDays(today, -1)) return "yesterday";
+  return date;
+}
+
+// How long after a decision Undo is offered. The backend's undo_decision allows 24 hours;
+// the button goes away a few minutes early so a tap never races the cutoff.
+export const UNDO_WINDOW_MS = 24 * 60 * 60 * 1000 - 5 * 60 * 1000;
+
+export function canUndo(s: KitchenShift, nowMs: number): boolean {
+  if (s.status !== "confirmed" && s.status !== "rejected") return false;
+  if (!s.decidedAt) return false;
+  const age = nowMs - Date.parse(s.decidedAt);
+  return age >= 0 && age < UNDO_WINDOW_MS;
 }
 
 function byCheckIn(a: KitchenShift, b: KitchenShift): number {

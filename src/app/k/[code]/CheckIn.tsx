@@ -9,6 +9,7 @@ import { safeGet, safeSet } from "@/lib/storage/safe";
 import { CHECKIN_ACK_KEY } from "@/lib/shifts/local";
 import { errorCode, loadBackend, withTimeout } from "@/lib/shifts/client-backend";
 import type { BackendErrorCode, KitchenInfo, Shift } from "@/lib/shifts/types";
+import { LinkCodeOffer } from "./LinkCodeOffer";
 import {
   deriveCheckin,
   elapsedParts,
@@ -311,6 +312,7 @@ export function CheckIn({ code }: { code: string }) {
           {view.shift.autoClosed && <AutoClosedNote text={t("autoClosed")} />}
           <p className="text-lg leading-snug text-text-muted">{t("sentNote")}</p>
           {seeHours("strong")}
+          <LinkCodeOffer />
         </>
       );
       break;
@@ -342,6 +344,7 @@ export function CheckIn({ code }: { code: string }) {
               {busy ? t("checkingOut") : t("checkOut")}
             </button>
             <p className="-mt-3 text-center text-lg text-text-muted">{t("checkOutHint")}</p>
+            <LinkCodeOffer />
           </>
         );
         break;

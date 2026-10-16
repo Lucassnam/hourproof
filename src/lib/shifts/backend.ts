@@ -28,6 +28,10 @@ class UnavailableShiftBackend implements ShiftBackend {
   decide = (): Promise<never> => this.fail()
   posterCode = (): Promise<never> => this.fail()
   rotateCode = (): Promise<never> => this.fail()
+  kitchenWaiting = (): Promise<never> => this.fail()
+  undoDecision = (): Promise<never> => this.fail()
+  makeLinkCode = (): Promise<never> => this.fail()
+  useLinkCode = (): Promise<never> => this.fail()
 }
 
 export function getShiftBackend(): ShiftBackend {

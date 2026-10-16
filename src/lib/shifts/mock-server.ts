@@ -1,5 +1,5 @@
 // A pure in-memory ShiftCred state machine with the same semantics as
-// supabase/migrations/20260927000000_shiftcred.sql, for the UI and e2e to run
+// supabase/migrations/20260927000000_shiftcred.sql and 20261015000000_waiting_undo_links.sql, for the UI and e2e to run
 // without a Supabase project. See src/app/api/mock-shifts/route.ts (the HTTP
 // wrapper, module-level singleton) and src/lib/shifts/mock-client.ts (the
 // browser-side ShiftBackend that talks to that route).
@@ -8,7 +8,16 @@
 // so the mock and the SQL agree on the math by construction, not by copying it.
 import { randomBytes } from 'node:crypto'
 import { AUTO_CLOSE_HOURS, MAX_CONFIRM_HOURS, autoCloseAt, shiftLogDate } from './rules'
-import { ShiftBackendError, type KitchenInfo, type KitchenShift, type Shift, type ShiftStatus } from './types'
+import { addDays } from '@/lib/dates'
+import {
+  ShiftBackendError,
+  type KitchenInfo,
+  type KitchenShift,
+  type LinkCode,
+  type LinkResult,
+  type Shift,
+  type ShiftStatus,
+} from './types'
 
 // Mock-only seed, per the controller ruling: a fixed kitchen so the UI and e2e
 // have something to check in against with no setup step.
@@ -59,6 +68,11 @@ export type MockState = {
   shifts: MockShift[]
   volunteers: Map<string, string> /* userId -> displayName */
   pinLocks: Map<string, PinLock> /* kitchenId -> lock state */
+  // Device links (second migration): userId -> groupId, live codes, and each user's
+  // wrong-code times (epoch ms) for the guess limit.
+  links: Map<string, string>
+  linkCodes: Map<string, { userId: string; expiresAtMs: number }>
+  linkAttempts: Map<string, number[]>
 }
 
 let nextId = 0
@@ -90,7 +104,15 @@ export type ResetOptions = {
 export function createMockState(opts: ResetOptions = {}): MockState {
   const kitchens = [seedKitchen(DEFAULT_KITCHEN)]
   if (opts.seedSecondKitchen) kitchens.push(seedKitchen(SECOND_KITCHEN))
-  return { kitchens, shifts: [], volunteers: new Map(), pinLocks: new Map() }
+  return {
+    kitchens,
+    shifts: [],
+    volunteers: new Map(),
+    pinLocks: new Map(),
+    links: new Map(),
+    linkCodes: new Map(),
+    linkAttempts: new Map(),
+  }
 }
 
 // Test-only helper (not reachable through the HTTP route): adds another
@@ -151,6 +173,9 @@ export function reset(state: MockState, opts: ResetOptions = {}): MockState {
   state.shifts = fresh.shifts
   state.volunteers = fresh.volunteers
   state.pinLocks = fresh.pinLocks
+  state.links = fresh.links
+  state.linkCodes = fresh.linkCodes
+  state.linkAttempts = fresh.linkAttempts
   return state
 }
 
@@ -211,7 +236,29 @@ function mapShift(state: MockState, s: MockShift): Shift {
 }
 
 function mapKitchenShift(state: MockState, s: MockShift): KitchenShift {
-  return { ...mapShift(state, s), volunteerName: volunteerNameOf(state, s.userId) }
+  return { ...mapShift(state, s), volunteerName: volunteerNameOf(state, s.userId), decidedAt: s.decidedAt }
+}
+
+// Mirrors _linked_users: the user and everyone in their link group.
+function linkedUsers(state: MockState, userId: string): Set<string> {
+  const group = state.links.get(userId)
+  const users = new Set([userId])
+  if (group) for (const [u, g] of state.links) if (g === group) users.add(u)
+  return users
+}
+
+// Mirrors make_link_code's alphabet: no 0/O, 1/I/L.
+const LINK_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+const LINK_CODE_TTL_MS = 15 * 60 * 1000
+const LINK_GUESS_LIMIT = 5
+
+function newLinkCode(): string {
+  let code = ''
+  while (code.length < 8) {
+    const b = randomBytes(1)[0]
+    if (b < 248) code += LINK_ALPHABET[b % 31]
+  }
+  return code
 }
 
 // Mirrors _auto_close: any open shift strictly older than AUTO_CLOSE_HOURS
@@ -291,6 +338,10 @@ export type MockArgs = {
   }
   posterCode: { slug: string; pin: string }
   rotateCode: { slug: string; pin: string }
+  kitchenWaiting: { slug: string; pin: string; before: string }
+  undoDecision: { slug: string; pin: string; shiftId: string }
+  makeLinkCode: Record<string, never>
+  useLinkCode: { code: string }
 }
 
 export type MockResult = {
@@ -303,6 +354,10 @@ export type MockResult = {
   decide: KitchenShift
   posterCode: string
   rotateCode: string
+  kitchenWaiting: KitchenShift[]
+  undoDecision: KitchenShift
+  makeLinkCode: LinkCode
+  useLinkCode: LinkResult
 }
 
 export type MockOp = keyof MockArgs
@@ -373,9 +428,10 @@ function dispatch(state: MockState, op: MockOp, args: unknown, volunteerId: stri
     case 'myShifts': {
       const { sinceDate } = args as MockArgs['myShifts']
       if (!volunteerId) return []
-      autoCloseShifts(state, now, { userId: volunteerId })
+      const users = linkedUsers(state, volunteerId)
+      for (const userId of users) autoCloseShifts(state, now, { userId })
       return state.shifts
-        .filter((s) => s.userId === volunteerId && shiftLogDate(s.checkIn) >= sinceDate)
+        .filter((s) => users.has(s.userId) && shiftLogDate(s.checkIn) >= sinceDate)
         .sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.id.localeCompare(b.id))
         .map((s) => mapShift(state, s))
     }
@@ -442,6 +498,73 @@ function dispatch(state: MockState, op: MockOp, args: unknown, volunteerId: stri
       if (!kitchen) throw new ShiftBackendError('not_found')
       kitchen.qrCode = newCode()
       return kitchen.qrCode
+    }
+
+    case 'kitchenWaiting': {
+      const { slug, pin, before } = args as MockArgs['kitchenWaiting']
+      if (before == null) throw new ShiftBackendError('not_found')
+      const kitchenId = checkPin(state, slug, pin, now)
+      autoCloseShifts(state, now, { kitchenId })
+      const earliest = addDays(before, -90)
+      return state.shifts
+        .filter((s) => {
+          const day = shiftLogDate(s.checkIn)
+          return s.kitchenId === kitchenId && s.status === 'pending' && day < before && day >= earliest
+        })
+        .sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.id.localeCompare(b.id))
+        .map((s) => mapKitchenShift(state, s))
+    }
+
+    case 'undoDecision': {
+      const { slug, pin, shiftId } = args as MockArgs['undoDecision']
+      const kitchenId = checkPin(state, slug, pin, now)
+      const shift = state.shifts.find(
+        (s) =>
+          s.id === shiftId &&
+          s.kitchenId === kitchenId &&
+          (s.status === 'confirmed' || s.status === 'rejected') &&
+          s.decidedAt !== null &&
+          now.getTime() - new Date(s.decidedAt).getTime() < 24 * 60 * 60 * 1000,
+      )
+      if (!shift) throw new ShiftBackendError('not_found')
+      shift.status = 'pending'
+      shift.confirmedBy = null
+      shift.reason = null
+      shift.decidedAt = null
+      return mapKitchenShift(state, shift)
+    }
+
+    case 'makeLinkCode': {
+      if (!volunteerId) throw new ShiftBackendError('not_checked_in')
+      for (const [code, c] of state.linkCodes) {
+        if (c.userId === volunteerId || c.expiresAtMs < now.getTime()) state.linkCodes.delete(code)
+      }
+      let code = newLinkCode()
+      while (state.linkCodes.has(code)) code = newLinkCode()
+      const expiresAtMs = now.getTime() + LINK_CODE_TTL_MS
+      state.linkCodes.set(code, { userId: volunteerId, expiresAtMs })
+      return { code, expiresAt: new Date(expiresAtMs).toISOString() }
+    }
+
+    case 'useLinkCode': {
+      if (!volunteerId) throw new ShiftBackendError('not_checked_in')
+      const recent = (state.linkAttempts.get(volunteerId) ?? []).filter((t) => now.getTime() - t < LINK_CODE_TTL_MS)
+      if (recent.length >= LINK_GUESS_LIMIT) return 'locked'
+      const code = String((args as MockArgs['useLinkCode']).code ?? '')
+        .replace(/[\s-]/g, '')
+        .toUpperCase()
+      const entry = state.linkCodes.get(code)
+      if (!entry || entry.expiresAtMs < now.getTime() || entry.userId === volunteerId) {
+        state.linkAttempts.set(volunteerId, [...recent, now.getTime()])
+        return 'bad_code'
+      }
+      state.linkCodes.delete(code)
+      const mine = state.links.get(volunteerId)
+      const group = state.links.get(entry.userId) ?? mine ?? newId('group')
+      if (mine && mine !== group) for (const [u, g] of state.links) if (g === mine) state.links.set(u, group)
+      state.links.set(volunteerId, group)
+      state.links.set(entry.userId, group)
+      return 'ok'
     }
 
     default: {

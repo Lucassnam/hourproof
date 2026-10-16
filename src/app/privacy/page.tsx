@@ -50,7 +50,7 @@ export default async function PrivacyPage() {
       </Section>
 
       <Section id="privacy-sent" title={t("sentTitle")}>
-        <List items={[t("sent1"), t("sent2"), t("sent3"), t("sent4")]} />
+        <List items={[t("sent1"), t("sent2"), t("sent3"), t("sent4"), t("sent5")]} />
       </Section>
 
       <Section id="privacy-never" title={t("neverTitle")}>

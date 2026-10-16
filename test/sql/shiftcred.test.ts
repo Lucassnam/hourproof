@@ -2,14 +2,13 @@
 // Each test gets a fresh database. Every RPC call goes through asUser/asAnon, one
 // transaction per call, the way PostgREST runs one transaction per request.
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  MIGRATION_PATH,
   asAnon,
   asUser,
   freshDb,
   freshStubDb,
+  migrationSql,
   rpc,
   rpcValue,
   type Db,
@@ -162,15 +161,18 @@ describe("ShiftCred migration (PGlite)", () => {
     pins.clear();
   });
 
-  it("1. applies cleanly on a fresh database, with RLS on every table", async () => {
+  it("1. every migration applies cleanly, in order, on a fresh database, with RLS on every table", async () => {
     const fresh = await freshStubDb();
-    await expect(fresh.exec(readFileSync(MIGRATION_PATH, "utf8"))).resolves.toBeDefined();
+    for (const sql of migrationSql()) await expect(fresh.exec(sql)).resolves.toBeDefined();
     const r = await fresh.query<{ relname: string; relrowsecurity: boolean }>(
       `select relname, relrowsecurity from pg_class
        where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname`,
     );
     expect(r.rows).toEqual([
+      { relname: "device_links", relrowsecurity: true },
       { relname: "kitchens", relrowsecurity: true },
+      { relname: "link_attempts", relrowsecurity: true },
+      { relname: "link_codes", relrowsecurity: true },
       { relname: "pin_attempts", relrowsecurity: true },
       { relname: "shifts", relrowsecurity: true },
       { relname: "volunteers", relrowsecurity: true },
@@ -510,6 +512,7 @@ describe("ShiftCred migration (PGlite)", () => {
       _auto_close: [false, false],
       _check_pin: [false, false],
       _kitchen_shift_rows: [false, false],
+      _linked_users: [false, false],
       _new_code: [false, false],
       _new_pin: [false, false],
       _pin_lock_seq: [false, false],
@@ -519,6 +522,8 @@ describe("ShiftCred migration (PGlite)", () => {
       decide_shift: [true, true],
       kitchen_by_code: [true, true],
       kitchen_shifts: [true, true],
+      kitchen_waiting: [true, true],
+      make_link_code: [false, true],
       my_shifts: [false, true],
       ping: [true, true],
       poster_code: [true, true],
@@ -526,7 +531,9 @@ describe("ShiftCred migration (PGlite)", () => {
       rotate_code: [true, true],
       tg_kitchens_pin_lock: [false, false],
       tg_kitchens_pin_lock_drop: [false, false],
+      undo_decision: [true, true],
       unlock_kitchen: [false, false],
+      use_link_code: [false, true],
     });
   });
 
@@ -718,5 +725,168 @@ describe("ShiftCred migration (PGlite)", () => {
     expect(m.policy_volunteers_select_own).toMatch(/\( SELECT auth\.uid\(\)/);
     expect(m.fk_shifts).toBe("r"); // restrict
     expect(m["fk_volunteers"]).toBe("r");
+  });
+});
+
+// 20261015000000_waiting_undo_links.sql (2026-10-15 audit fixes).
+describe("Waiting from earlier days, undo, device links (PGlite)", () => {
+  beforeEach(async () => {
+    db = await freshDb();
+    pins.clear();
+  });
+
+  const waiting = (slug: string, pin: string, before: string) =>
+    asAnon(db, (tx) => rpc<ShiftRow>(tx, "kitchen_waiting", { p_slug: slug, p_pin: pin, p_before: before }));
+  const undo = (slug: string, pin: string, shiftId: string) =>
+    asAnon(db, (tx) => rpc<ShiftRow>(tx, "undo_decision", { p_slug: slug, p_pin: pin, p_shift_id: shiftId })).then((r) => r[0]);
+  const makeCode = (uid: string) =>
+    asUser(db, uid, (tx) => rpc<{ code: string; expires_at: Date }>(tx, "make_link_code")).then((r) => r[0]);
+  const useCode = (uid: string, code: string) =>
+    asUser(db, uid, (tx) => rpcValue<string>(tx, "use_link_code", { p_code: code }));
+  /** Noon California time on the given date, as an ISO instant (PDT in the dates used). */
+  const caNoon = (date: string) => `${date}T12:00:00-07:00`;
+  const daysBefore = async (n: number) =>
+    (await db.query<{ d: string }>("select (((now() at time zone 'America/Los_Angeles')::date) - $1::int)::text as d", [n])).rows[0].d;
+
+  it("21. kitchen_waiting: only this kitchen's pending shifts before the given day, within 90 days, oldest first; PIN-gated", async () => {
+    await createKitchen("kitchen-a");
+    await createKitchen("kitchen-b");
+    const yesterday = await daysBefore(1);
+    const d3 = await daysBefore(3);
+    const d5 = await daysBefore(5);
+    const d100 = await daysBefore(100);
+    const ana = randomUUID();
+    const p5 = await insertShift(ana, "kitchen-a", caNoon(d5), caNoon(d5).replace("12:00", "15:00"), "pending");
+    const p3 = await insertShift(ana, "kitchen-a", caNoon(d3), caNoon(d3).replace("12:00", "14:00"), "pending");
+    await insertShift(ana, "kitchen-a", caNoon(d3).replace("12:00", "09:00"), caNoon(d3).replace("12:00", "10:00"), "confirmed");
+    await insertShift(ana, "kitchen-a", caNoon(yesterday), caNoon(yesterday).replace("12:00", "13:00"), "pending");
+    await insertShift(ana, "kitchen-a", caNoon(d100), caNoon(d100).replace("12:00", "13:00"), "pending");
+    await insertShift(ana, "kitchen-b", caNoon(d3), caNoon(d3).replace("12:00", "13:00"), "pending");
+
+    const rows = await waiting("kitchen-a", pinOf("kitchen-a"), yesterday);
+    expect(rows.map((r) => r.id)).toEqual([p5, p3]);
+    expect(rows[0]).toMatchObject({ status: "pending", kitchen_name: "Kitchen kitchen-a", volunteer_name: "" });
+
+    expect(await errorOf(waiting("kitchen-a", wrongPin("kitchen-a"), yesterday))).toBe("bad_pin");
+    expect(await errorOf(waiting("nope", "123456", yesterday))).toBe("not_found");
+    expect(await errorOf(asAnon(db, (tx) => rpc(tx, "kitchen_waiting", { p_slug: "kitchen-a", p_pin: pinOf("kitchen-a"), p_before: null })))).toBe("not_found");
+  });
+
+  it("22. kitchen_waiting auto-closes a forgotten open shift so it shows as waiting, and a shift from 3 days ago can then be confirmed", async () => {
+    await createKitchen("kitchen-a");
+    const d3 = await daysBefore(3);
+    const ana = randomUUID();
+    const id = await insertShift(ana, "kitchen-a", caNoon(d3), null, "open");
+
+    const [row] = await waiting("kitchen-a", pinOf("kitchen-a"), await daysBefore(1));
+    expect(row).toMatchObject({ id, status: "pending", auto_closed: true });
+
+    const done = await decide("kitchen-a", pinOf("kitchen-a"), id, "confirm", { p_check_out: caNoon(d3).replace("12:00", "16:00") });
+    expect(done.status).toBe("confirmed");
+    expect(await waiting("kitchen-a", pinOf("kitchen-a"), await daysBefore(1))).toEqual([]);
+  });
+
+  it("23. undo_decision: back to pending within 24 hours with the end time kept; not after 24 hours, not twice, not another kitchen's, not with a wrong PIN", async () => {
+    const a = await createKitchen("kitchen-a");
+    await createKitchen("kitchen-b");
+    const ana = randomUUID();
+    await checkIn(ana, a, "Ana");
+    await db.query("update public.shifts set check_in = now() - interval '3 hours'");
+    const closed = await checkOut(ana, a);
+    const confirmed = await decide("kitchen-a", pinOf("kitchen-a"), closed.id, "confirm");
+    expect(confirmed.status).toBe("confirmed");
+
+    expect(await errorOf(undo("kitchen-b", pinOf("kitchen-b"), closed.id))).toBe("not_found");
+    expect(await errorOf(undo("kitchen-a", wrongPin("kitchen-a"), closed.id))).toBe("bad_pin");
+
+    const back = await undo("kitchen-a", pinOf("kitchen-a"), closed.id);
+    expect(back).toMatchObject({ id: closed.id, status: "pending", confirmed_by: null, reason: null, decided_at: null, volunteer_name: "Ana" });
+    expect(back.check_out!.getTime()).toBe(closed.check_out!.getTime());
+    expect(await errorOf(undo("kitchen-a", pinOf("kitchen-a"), closed.id))).toBe("not_found");
+
+    // Rejected, then 25 hours pass: final.
+    const rejected = await decide("kitchen-a", pinOf("kitchen-a"), closed.id, "reject", { p_reason: "Didn't work" });
+    expect(rejected.status).toBe("rejected");
+    await db.query("update public.shifts set decided_at = now() - interval '25 hours' where id = $1", [closed.id]);
+    expect(await errorOf(undo("kitchen-a", pinOf("kitchen-a"), closed.id))).toBe("not_found");
+    const still = await db.query("select status from public.shifts where id = $1", [closed.id]);
+    expect(still.rows).toEqual([{ status: "rejected" }]);
+  });
+
+  it("24. links: a code from Safari lets the Home Screen app see Safari's shifts, past and future, both ways; check-in stays per browser", async () => {
+    const a = await createKitchen("kitchen-a");
+    const b = await createKitchen("kitchen-b");
+    const safari = randomUUID();
+    const app = randomUUID();
+    const s1 = await checkIn(safari, a, "Ana");
+    await checkOut(safari, a);
+    expect(await myShifts(app)).toEqual([]);
+
+    const { code, expires_at } = await makeCode(safari);
+    expect(code).toMatch(/^[2-9A-HJKMNP-Z]{8}$/);
+    expect(expires_at.getTime() - Date.now()).toBeGreaterThan(14 * 60_000);
+    // Typed loosely: lowercase, with a dash and a space.
+    expect(await useCode(app, `${code.slice(0, 4).toLowerCase()}- ${code.slice(4)}`)).toBe("ok");
+
+    expect((await myShifts(app)).map((s) => s.id)).toEqual([s1.id]);
+    const s2 = await checkIn(safari, a, "Ana");
+    expect((await myShifts(app)).map((s) => s.id)).toEqual([s1.id, s2.id]);
+    // The app checking in somewhere else is its own open shift: no already_open_elsewhere.
+    const s3 = await checkIn(app, b, "Ana");
+    expect(s3.status).toBe("open");
+    expect((await myShifts(safari)).map((s) => s.id).sort()).toEqual([s1.id, s2.id, s3.id].sort());
+
+    // Single use.
+    expect(await useCode(randomUUID(), code)).toBe("bad_code");
+  });
+
+  it("25. links: a third browser joins the group; linking two groups merges them; your own code, an expired code and a replaced code don't work", async () => {
+    const a = await createKitchen("kitchen-a");
+    const [u1, u2, u3, u4] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    const shifts: Record<string, string> = {};
+    for (const u of [u1, u2, u3, u4]) {
+      shifts[u] = (await checkIn(u, a, "Ana")).id;
+      await checkOut(u, a);
+    }
+    expect(await useCode(u2, (await makeCode(u1)).code)).toBe("ok");
+    expect(await useCode(u4, (await makeCode(u3)).code)).toBe("ok");
+    expect(await useCode(u3, (await makeCode(u1)).code)).toBe("ok");
+    for (const u of [u1, u2, u3, u4]) {
+      expect((await myShifts(u)).map((s) => s.id).sort()).toEqual(Object.values(shifts).sort());
+    }
+
+    const lone = randomUUID();
+    const own = await makeCode(lone);
+    expect(await useCode(lone, own.code)).toBe("bad_code");
+
+    const replaced = (await makeCode(lone)).code;
+    const current = (await makeCode(lone)).code;
+    expect(await useCode(randomUUID(), replaced)).toBe(replaced === current ? "ok" : "bad_code");
+
+    const expiring = randomUUID();
+    const late = await makeCode(expiring);
+    await db.query("update public.link_codes set expires_at = now() - interval '1 second' where code = $1", [late.code]);
+    expect(await useCode(randomUUID(), late.code)).toBe("bad_code");
+  });
+
+  it("26. links: 5 wrong codes in 15 minutes lock the caller out (the count survives each call's transaction); 16 minutes later it works again", async () => {
+    const owner = randomUUID();
+    const guesser = randomUUID();
+    const { code } = await makeCode(owner);
+    for (let i = 0; i < 5; i++) expect(await useCode(guesser, "22222222")).toBe("bad_code");
+    expect(await useCode(guesser, code)).toBe("locked");
+    await db.query("update public.link_attempts set at = at - interval '16 minutes'");
+    expect(await useCode(guesser, code)).toBe("ok");
+  });
+
+  it("27. links: the bare anon key can't make or use codes, and nobody can read the link tables", async () => {
+    expect(await errorOf(asAnon(db, (tx) => rpc(tx, "make_link_code")))).toMatch(/permission denied/);
+    expect(await errorOf(asAnon(db, (tx) => rpc(tx, "use_link_code", { p_code: "22222222" })))).toMatch(/permission denied/);
+    const uid = randomUUID();
+    await makeCode(uid);
+    for (const table of ["link_codes", "device_links", "link_attempts"]) {
+      expect(await errorOf(asUser(db, uid, (tx) => tx.query(`select * from public.${table}`)))).toMatch(/permission denied/);
+      expect(await errorOf(asAnon(db, (tx) => tx.query(`select * from public.${table}`)))).toMatch(/permission denied/);
+    }
   });
 });

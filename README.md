@@ -67,7 +67,9 @@ Only kitchen check-in uses a server. Without the two variables below, the rest o
    ```bash
    supabase db query --linked "select * from public.create_kitchen('Kitchen name', 'kitchen-slug', null)"
    ```
-6. For the keep-alive job (`.github/workflows/keepalive.yml`), set the repository variables `SUPABASE_URL` and `SUPABASE_ANON_KEY`. A free project is paused after about a week without activity.
+6. Keep the project awake. A free project is paused after about a week without activity, so two jobs call `ping()`:
+   - a Vercel Cron (`vercel.json`) calls `/api/keepalive` every day. It runs on production deployments only. Setting `CRON_SECRET` in Vercel makes the route refuse anyone but Vercel;
+   - a GitHub Actions job (`.github/workflows/keepalive.yml`) every 3 days, using the repository variables `SUPABASE_URL` and `SUPABASE_ANON_KEY`. GitHub turns scheduled jobs off after 60 days without a commit, so the job re-enables itself through the API each time it runs.
 
 Optional: `NEXT_PUBLIC_CONTACT_EMAIL` is the address the About page shows. Until it is set, the page links to this repository's issues instead. `NEXT_PUBLIC_SITE_URL` is the address printed on QR posters.
 

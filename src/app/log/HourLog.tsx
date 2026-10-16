@@ -16,6 +16,7 @@ import { useKitchenShifts } from "@/lib/shifts/useKitchenShifts";
 import { requestPersistence } from "@/lib/storage/persist";
 import { EntryForm } from "./EntryForm";
 import { KeepSafe } from "./KeepSafe";
+import { LinkDevice } from "./LinkDevice";
 import { Ring } from "./Ring";
 import { formatDay, formatMonth, formatNumber } from "./format";
 import { doesNotCount, mayCountPartly, notesFor } from "./notes";
@@ -154,7 +155,8 @@ export function HourLog() {
   };
 
   const shiftsSince = `${addMonths(currentMonth, -SHIFT_MONTHS_BACK)}-01`;
-  const { shifts, syncFailed } = useKitchenShifts(loaded?.mode === "real", shiftsSince);
+  const [linkVersion, setLinkVersion] = useState(0);
+  const { shifts, syncFailed } = useKitchenShifts(loaded?.mode === "real", shiftsSince, linkVersion);
 
   // The month as shown and counted: the person's own entries plus kitchen shifts. `today` is a
   // dependency so a shift left open overnight reads as auto-closed when the phone wakes up.
@@ -426,6 +428,8 @@ export function HourLog() {
           <li className="text-lg leading-snug">{t("rule.report")}</li>
         </ul>
       </details>
+
+      {loaded && loaded.mode === "real" && <LinkDevice onLinked={() => setLinkVersion((v) => v + 1)} />}
 
       {loaded && loaded.mode === "real" && <KeepSafe store={loaded.store} today={today} onRestored={() => reload(loaded.store)} />}
 

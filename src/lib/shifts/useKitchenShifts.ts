@@ -28,8 +28,13 @@ function isWaiting(shift: Shift): boolean {
 // waiting, an open page makes no more requests on its own.
 //
 // `enabled` is false until the page knows it is not in the demo, which has no kitchen and
-// must not touch the network.
-export function useKitchenShifts(enabled: boolean, sinceDate: string): { shifts: Shift[]; syncFailed: boolean } {
+// must not touch the network. Changing `resyncKey` starts over (the log bumps it after this
+// browser is linked to another one, which also makes hasCheckedInHere() true).
+export function useKitchenShifts(
+  enabled: boolean,
+  sinceDate: string,
+  resyncKey = 0,
+): { shifts: Shift[]; syncFailed: boolean } {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [syncFailed, setSyncFailed] = useState(false);
   const waiting = useRef(false);
@@ -82,7 +87,7 @@ export function useKitchenShifts(enabled: boolean, sinceDate: string): { shifts:
       window.removeEventListener("focus", onReturn);
       window.clearInterval(poll);
     };
-  }, [enabled, sinceDate]);
+  }, [enabled, sinceDate, resyncKey]);
 
   return { shifts, syncFailed };
 }

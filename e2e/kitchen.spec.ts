@@ -221,6 +221,48 @@ test("4. a decision that doesn't save is put back, with a plain message, and can
   await expect(waiting.getByRole("alert")).toHaveCount(0);
 });
 
+test("4b. a shift nobody decided days ago is listed under Still waiting from earlier days, and can be confirmed there", async ({
+  page,
+  request,
+}) => {
+  const inAt = new Date(Date.now() - 3 * 24 * HOUR);
+  await apiShift(request, "vol-old", "Rosa", inAt, new Date(inAt.getTime() + 3 * HOUR));
+  await unlock(page);
+
+  const earlier = region(page, /^Still waiting from earlier days/);
+  await expect(earlier.getByTestId("earlier-row")).toHaveCount(1);
+  await expect(earlier.getByTestId("earlier-row")).toContainText("Rosa");
+  await expect(earlier.getByTestId("earlier-row")).toContainText("3 hours");
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: CA }).format(inAt);
+  await expect(earlier.getByTestId("earlier-row")).toContainText(weekday);
+
+  await earlier.getByRole("button", { name: "Confirm Rosa" }).click();
+  await expect(earlier).toHaveCount(0);
+  const shifts = await mockCall<ApiShift[]>(request, ns, "myShifts", { sinceDate: "2000-01-01" }, { volunteerId: "vol-old" });
+  expect(shifts[0]).toMatchObject({ status: "confirmed", confirmedBy: "Sam" });
+
+  // Another day: that date's list shows the decision.
+  await page.getByLabel("Another day").fill(caParts(inAt.getTime()).date);
+  await expect(page.getByTestId("showing-day")).toContainText(weekday);
+  await expect(region(page, /^Done/).getByTestId("done-row")).toContainText("✓ Confirmed by Sam");
+  await expect(page.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("4c. Undo puts a decision back to Waiting; the server agrees", async ({ page, request }) => {
+  const s = await apiShift(request, "vol-u", "Maria", new Date(Date.now() - 2 * HOUR), new Date());
+  await unlock(page);
+  await showDayOf(page, s.checkIn);
+  await page.getByRole("button", { name: "Confirm Maria" }).click();
+  const done = region(page, /^Done/);
+  await expect(done.getByTestId("done-row")).toContainText("✓ Confirmed by Sam");
+
+  await done.getByRole("button", { name: "Undo the decision for Maria" }).click();
+  await expect(region(page, /^Waiting for you/).getByTestId("waiting-row")).toContainText("Maria");
+  await expect(done.getByTestId("done-row")).toHaveCount(0);
+  const shifts = await mockCall<ApiShift[]>(request, ns, "myShifts", { sinceDate: "2000-01-01" }, { volunteerId: "vol-u" });
+  expect(shifts[0]).toMatchObject({ status: "pending", confirmedBy: null });
+});
+
 test("5. Reject needs a reason: a chip, or Other with words", async ({ page, request }) => {
   const s = await apiShift(request, "vol-b", "Ana", new Date(Date.now() - 3 * HOUR), new Date(Date.now() - HOUR));
   await unlock(page);

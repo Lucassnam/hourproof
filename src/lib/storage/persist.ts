@@ -34,8 +34,11 @@ export function installAdvice(env: {
   canPrompt: boolean
 }): InstallAdvice {
   if (env.standalone) return 'none'
-  // iPadOS identifies itself as a Mac; a Mac with a touch screen is an iPad.
-  const ios = /iPad|iPhone|iPod/.test(env.userAgent) || (env.platform === 'MacIntel' && env.maxTouchPoints > 1)
-  if (ios) return 'ios'
+  if (isAppleMobile(env)) return 'ios'
   return env.canPrompt ? 'prompt' : 'none'
+}
+
+// iPhone, iPod or iPad. iPadOS identifies itself as a Mac; a Mac with a touch screen is an iPad.
+export function isAppleMobile(env: { userAgent: string; platform: string; maxTouchPoints: number }): boolean {
+  return /iPad|iPhone|iPod/.test(env.userAgent) || (env.platform === 'MacIntel' && env.maxTouchPoints > 1)
 }
