@@ -346,7 +346,8 @@
       "timeFuture": "La hora de salida no puede ser más tarde que ahora.",
       "reasonNeeded": "Elija un motivo.",
       "reasonTooLong": "Use menos de 280 caracteres para el motivo.",
-      "notSaved": "No se guardó: {problem}"
+      "notSaved": "No se guardó: {problem}",
+      "undoExpired": "Esta decisión ya no se puede deshacer (pasaron 24 horas)."
     },
     "poster": {
       "title": "Cartel QR",
@@ -366,7 +367,14 @@
       "step2": "2. Apunte a este código.",
       "step3": "3. Toque Registrar entrada.",
       "typeAddress": "¿No tiene cámara? Escriba esta dirección:"
-    }
+    },
+    "earlierHeading": "Siguen esperando de días anteriores",
+    "earlierIntro": "Nadie los ha confirmado todavía. Cuentan para la persona voluntaria hasta que usted decida.",
+    "otherDay": "Otro día",
+    "showingDay": "Mostrando {date}",
+    "undo": "Deshacer",
+    "undoFor": "Deshacer la decisión para {name}",
+    "undoneAnnounce": "Deshecho. El turno de {name} vuelve a esperar."
   },
   "proof": {
     "title": "Sus comprobantes",

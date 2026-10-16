@@ -346,7 +346,8 @@
       "timeFuture": "The time they left can't be later than now.",
       "reasonNeeded": "Pick a reason.",
       "reasonTooLong": "Keep the reason under 280 characters.",
-      "notSaved": "That wasn't saved: {problem}"
+      "notSaved": "That wasn't saved: {problem}",
+      "undoExpired": "This decision can't be undone anymore (24 hours have passed)."
     },
     "poster": {
       "title": "QR poster",
@@ -366,7 +367,14 @@
       "step2": "2. Point it at this code.",
       "step3": "3. Tap Check in.",
       "typeAddress": "No camera? Type this address:"
-    }
+    },
+    "earlierHeading": "Still waiting from earlier days",
+    "earlierIntro": "Nobody confirmed these yet. They count for the volunteer until you decide.",
+    "otherDay": "Another day",
+    "showingDay": "Showing {date}",
+    "undo": "Undo",
+    "undoFor": "Undo the decision for {name}",
+    "undoneAnnounce": "Undone. {name}'s shift is waiting again."
   },
   "proof": {
     "title": "Your proof",

@@ -7,23 +7,27 @@ import { Screen } from "@/components/ui/Screen";
 import { buttonClasses } from "@/components/ui/Button";
 import { safeGet, safeSet } from "@/lib/storage/safe";
 import { errorCode, loadBackend, withTimeout } from "@/lib/shifts/client-backend";
-import { formatClock, formatShiftHours } from "@/lib/shifts/format";
+import { formatClock, formatDayDate, formatShiftDate, formatShiftHours } from "@/lib/shifts/format";
 import type { BackendErrorCode, KitchenShift } from "@/lib/shifts/types";
 import {
+  canUndo,
   correctedEnd,
   dayDate,
   elapsedParts,
   endTimeReason,
   groupShifts,
   hoursOf,
+  pickedDay,
   rejectReason,
   withInFlight,
   type DayKey,
   type ReasonChoice,
 } from "./dashboard-state";
 
-// The supervisor's screen: a kitchen PIN opens today's (or yesterday's) shifts, and each
-// waiting shift gets Confirm or Reject. The supervisor is busy mid-service, so the screen
+// The supervisor's screen: a kitchen PIN opens today's (or yesterday's, or a picked day's)
+// shifts, and each waiting shift gets Confirm or Reject. Shifts nobody decided by yesterday
+// are listed on their own at the top, so none is left waiting (and counting) forever, and a
+// decision can be undone for 24 hours. The supervisor is busy mid-service, so the screen
 // refreshes itself, shows each decision right away (and puts it back, with a plain message,
 // if it didn't save), and never asks for more than the PIN and a first name.
 //
@@ -64,7 +68,13 @@ export function Dashboard({ slug }: { slug: string }) {
 
   const [session, setSession] = useState<Session | null>(null);
   const [day, setDay] = useState<DayKey>("today");
+  // The day on screen right now, for refreshes that start after an await: a decision that
+  // finishes saving after the supervisor switched days must reload the new day, not the one
+  // it was tapped on (that showed one day's list under another day's name).
+  const dayRef = useRef<DayKey>("today");
   const [shifts, setShifts] = useState<KitchenShift[] | null>(null);
+  // Still waiting from before yesterday (kitchen_waiting), whatever day is shown.
+  const [earlier, setEarlier] = useState<KitchenShift[]>([]);
   const [kitchenName, setKitchenName] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
@@ -107,6 +117,7 @@ export function Dashboard({ slug }: { slug: string }) {
     inFlight.current.clear();
     setSession(null);
     setShifts(null);
+    setEarlier([]);
     setDrafts({});
     setRowErrors({});
     setUnlockError(message);
@@ -122,6 +133,21 @@ export function Dashboard({ slug }: { slug: string }) {
     setRefreshFailed(false);
   }, []);
 
+  // The shifts still waiting from before yesterday, or null if they couldn't be fetched.
+  // Never fails the refresh it's part of: the day's list matters more, and the function
+  // only exists once the second migration is applied.
+  const fetchEarlier = useCallback(
+    async (pin: string): Promise<KitchenShift[] | null> => {
+      try {
+        const backend = await withTimeout(loadBackend());
+        return await withTimeout(backend.kitchenWaiting(slug, pin, dayDate("yesterday")));
+      } catch {
+        return null;
+      }
+    },
+    [slug],
+  );
+
   // A quiet refresh: on failure the list stays and a line says it's stale; a PIN the
   // backend no longer accepts (a lockout from elsewhere) goes back to the PIN screen.
   const refresh = useCallback(
@@ -129,9 +155,13 @@ export function Dashboard({ slug }: { slug: string }) {
       const seq = ++fetchSeq.current;
       try {
         const backend = await withTimeout(loadBackend());
-        const list = await withTimeout(backend.kitchenShifts(slug, s.pin, dayDate(which)));
+        const [list, older] = await Promise.all([
+          withTimeout(backend.kitchenShifts(slug, s.pin, dayDate(which))),
+          fetchEarlier(s.pin),
+        ]);
         if (seq !== fetchSeq.current) return;
         applyShifts(list);
+        if (older) setEarlier(withInFlight(older, inFlight.current));
       } catch (err) {
         if (seq !== fetchSeq.current) return;
         const c = errorCode(err);
@@ -139,7 +169,7 @@ export function Dashboard({ slug }: { slug: string }) {
         else setRefreshFailed(true);
       }
     },
-    [slug, applyShifts, lock, lockedMessage],
+    [slug, applyShifts, fetchEarlier, lock, lockedMessage],
   );
 
   const unlock = async (e: FormEvent) => {
@@ -160,6 +190,9 @@ export function Dashboard({ slug }: { slug: string }) {
       setPinDraft("");
       setSession({ pin, name });
       applyShifts(list);
+      void fetchEarlier(pin).then((older) => {
+        if (older && seq === fetchSeq.current) setEarlier(older);
+      });
     } catch (err) {
       setUnlockError(lockedMessage(errorCode(err)));
     } finally {
@@ -182,7 +215,7 @@ export function Dashboard({ slug }: { slug: string }) {
   // Every 30 seconds, and right away when the tablet comes back to this page.
   useEffect(() => {
     if (!session) return;
-    const tick = () => void refresh(session, day);
+    const tick = () => void refresh(session, dayRef.current);
     const id = window.setInterval(tick, REFRESH_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") tick();
@@ -196,12 +229,29 @@ export function Dashboard({ slug }: { slug: string }) {
 
   const switchDay = (next: DayKey) => {
     if (!session || next === day) return;
+    dayRef.current = next;
     setDay(next);
     setShifts(null);
     setDrafts({});
     setRowErrors({});
     void refresh(session, next);
   };
+
+  // A shift can be in the day's list, the earlier list, or both (a picked day in the last
+  // 90 days); a saved decision replaces it wherever it is.
+  const replaceRow = (id: string, row: KitchenShift) => {
+    const swap = <L extends KitchenShift[] | null>(list: L): L =>
+      (list ? list.map((s) => (s.id === id ? row : s)) : list) as L;
+    setShifts(swap);
+    setEarlier(swap);
+  };
+  const markBusy = (id: string, busy: boolean) =>
+    setBusyIds((ids) => {
+      const next = new Set(ids);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   const draftOf = (id: string): Draft => drafts[id] ?? EMPTY_DRAFT;
   const setDraft = (id: string, patch: Partial<Draft>) => {
@@ -255,10 +305,11 @@ export function Dashboard({ slug }: { slug: string }) {
       confirmedBy: session.name,
       reason: reason ?? null,
       checkOut: checkOut ?? shift.checkOut,
+      decidedAt: new Date().toISOString(),
     };
     inFlight.current.set(shift.id, optimistic);
-    setShifts((list) => list?.map((s) => (s.id === shift.id ? optimistic : s)) ?? list);
-    setBusyIds((ids) => new Set(ids).add(shift.id));
+    replaceRow(shift.id, optimistic);
+    markBusy(shift.id, true);
     setRowError(shift.id, null);
     const name = shift.volunteerName || t("volunteer");
 
@@ -268,18 +319,18 @@ export function Dashboard({ slug }: { slug: string }) {
         backend.decide(slug, session.pin, shift.id, { decision, supervisor: session.name, reason, checkOut }),
       );
       inFlight.current.delete(shift.id);
-      setShifts((list) => list?.map((s) => (s.id === shift.id ? saved : s)) ?? list);
+      replaceRow(shift.id, saved);
       setDrafts((d) => {
         const next = { ...d };
         delete next[shift.id];
         return next;
       });
       setAnnouncement(decision === "confirm" ? t("confirmedAnnounce", { name }) : t("rejectedAnnounce", { name }));
-      void refresh(session, day);
+      void refresh(session, dayRef.current);
     } catch (err) {
       inFlight.current.delete(shift.id);
       // Roll back just this row, to what it was before the tap.
-      setShifts((list) => list?.map((s) => (s.id === shift.id ? shift : s)) ?? list);
+      replaceRow(shift.id, shift);
       const c = errorCode(err);
       if (c === "bad_pin" || c === "locked") return lock(lockedMessage(c));
       const problem =
@@ -293,13 +344,31 @@ export function Dashboard({ slug }: { slug: string }) {
               ? t("errors.saveFailed")
               : t("errors.generic");
       setRowError(shift.id, problem);
-      if (c === "not_found") void refresh(session, day);
+      if (c === "not_found") void refresh(session, dayRef.current);
     } finally {
-      setBusyIds((ids) => {
-        const next = new Set(ids);
-        next.delete(shift.id);
-        return next;
-      });
+      markBusy(shift.id, false);
+    }
+  };
+
+  // Takes a decision back (within 24 hours): the shift is waiting again.
+  const undo = async (shift: KitchenShift) => {
+    if (!session || busyIds.has(shift.id)) return;
+    markBusy(shift.id, true);
+    setRowError(shift.id, null);
+    const name = shift.volunteerName || t("volunteer");
+    try {
+      const backend = await withTimeout(loadBackend());
+      const saved = await withTimeout(backend.undoDecision(slug, session.pin, shift.id));
+      replaceRow(shift.id, saved);
+      setAnnouncement(t("undoneAnnounce", { name }));
+      void refresh(session, dayRef.current);
+    } catch (err) {
+      const c = errorCode(err);
+      if (c === "bad_pin" || c === "locked") return lock(lockedMessage(c));
+      setRowError(shift.id, c === "not_found" ? t("errors.undoExpired") : c === "network" ? t("errors.saveFailed") : t("errors.generic"));
+      if (c === "not_found") void refresh(session, dayRef.current);
+    } finally {
+      markBusy(shift.id, false);
     }
   };
 
@@ -403,14 +472,19 @@ export function Dashboard({ slug }: { slug: string }) {
     <p className="text-xl font-semibold break-words">{s.volunteerName || t("volunteer")}</p>
   );
 
-  const waitingRow = (s: KitchenShift) => {
+  const waitingRow = (s: KitchenShift, fromEarlierDay = false) => {
     const d = draftOf(s.id);
     const why = endTimeReason(s);
     const busy = busyIds.has(s.id);
     const name = s.volunteerName || t("volunteer");
     const endId = `end-${s.id}`;
     return (
-      <li key={s.id} data-testid="waiting-row" className="flex flex-col gap-3 rounded-2xl border-2 border-border bg-surface p-4">
+      <li
+        key={s.id}
+        data-testid={fromEarlierDay ? "earlier-row" : "waiting-row"}
+        className="flex flex-col gap-3 rounded-2xl border-2 border-border bg-surface p-4"
+      >
+        {fromEarlierDay && <p className="text-lg font-semibold text-text-muted">{formatShiftDate(locale, s.checkIn)}</p>}
         <div className="flex flex-wrap items-center gap-2">
           {nameLine(s)}
           {why && (
@@ -542,8 +616,26 @@ export function Dashboard({ slug }: { slug: string }) {
           {t("rejectedBy", { name: s.confirmedBy ?? "", reason: s.reason ?? "" })}
         </p>
       )}
+      {alertBox(rowErrors[s.id])}
+      {canUndo(s, now) && (
+        <button
+          type="button"
+          disabled={busyIds.has(s.id)}
+          aria-label={t("undoFor", { name: s.volunteerName || t("volunteer") })}
+          onClick={() => void undo(s)}
+          className="mt-2 min-h-12 self-start rounded-2xl border-2 border-border bg-surface px-4 text-lg font-semibold"
+        >
+          {t("undo")}
+        </button>
+      )}
     </li>
   );
+
+  // Earlier days' waiting shifts not already in the list below (a picked day in range).
+  const shownIds = new Set(shifts?.map((s) => s.id) ?? []);
+  const earlierWaiting = earlier.filter((s) => s.status === "pending" && !shownIds.has(s.id));
+  const today = dayDate("today", new Date(now));
+  const pickedDate = day !== "today" && day !== "yesterday" ? day : null;
 
   const dayButton = (key: DayKey) => (
     <button
@@ -572,10 +664,45 @@ export function Dashboard({ slug }: { slug: string }) {
           {t("lock")}
         </button>
       </div>
-      <div role="group" aria-label={t("dayGroup")} className="grid grid-cols-2 gap-3">
-        {dayButton("yesterday")}
-        {dayButton("today")}
+      {earlierWaiting.length > 0 && (
+        <section aria-labelledby="earlier-heading" className="flex flex-col gap-3 rounded-2xl border-2 border-pace p-3">
+          <h2 id="earlier-heading" className="flex items-baseline justify-between gap-3 text-2xl font-semibold">
+            <span>{t("earlierHeading")}</span>{" "}
+            <span className="shrink-0 text-lg font-normal whitespace-nowrap text-text-muted">
+              {t("count", { n: earlierWaiting.length })}
+            </span>
+          </h2>
+          <p className="text-lg leading-snug">{t("earlierIntro")}</p>
+          <ul className="flex flex-col gap-3">{earlierWaiting.map((s) => waitingRow(s, true))}</ul>
+        </section>
+      )}
+      <div role="group" aria-label={t("dayGroup")} className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          {dayButton("yesterday")}
+          {dayButton("today")}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="other-day" className="text-lg font-semibold">
+            {t("otherDay")}
+          </label>
+          <input
+            id="other-day"
+            type="date"
+            max={today}
+            value={pickedDate ?? ""}
+            onChange={(e) => {
+              const next = pickedDay(e.target.value, new Date());
+              if (next) switchDay(next);
+            }}
+            className="min-h-14 w-full rounded-2xl border-2 border-border bg-surface px-4 text-xl text-text outline-offset-2 focus-visible:outline-2 focus-visible:outline-signal"
+          />
+        </div>
       </div>
+      {pickedDate && (
+        <p className="text-xl font-semibold" data-testid="showing-day">
+          {t("showingDay", { date: formatDayDate(locale, pickedDate) })}
+        </p>
+      )}
       <p role="status" className="text-base text-text-muted" data-testid="updated">
         {refreshFailed && updatedAt
           ? t("refreshFailed", { time: formatClock(locale, new Date(updatedAt).toISOString()) })
@@ -588,7 +715,7 @@ export function Dashboard({ slug }: { slug: string }) {
       </p>
       {groups && (
         <>
-          {section("waiting-heading", t("waitingHeading"), groups.waiting.length, t("emptyWaiting"), groups.waiting.map(waitingRow))}
+          {section("waiting-heading", t("waitingHeading"), groups.waiting.length, t("emptyWaiting"), groups.waiting.map((s) => waitingRow(s)))}
           {section("now-heading", t("nowHeading"), groups.now.length, t("emptyNow"), groups.now.map(nowRow))}
           {section("done-heading", t("doneHeading"), groups.done.length, t("emptyDone"), groups.done.map(doneRow))}
         </>

@@ -2,14 +2,17 @@ import { describe, expect, test } from 'vitest'
 import type { KitchenShift } from '@/lib/shifts/types'
 import { clockValue } from '@/lib/shifts/format'
 import {
+  canUndo,
   correctedEnd,
   dayDate,
   elapsedParts,
   endTimeReason,
   groupShifts,
   hoursOf,
+  pickedDay,
   rejectReason,
   withInFlight,
+  UNDO_WINDOW_MS,
 } from './dashboard-state'
 
 const HOUR = 60 * 60 * 1000
@@ -117,5 +120,29 @@ describe('kitchen dashboard helpers', () => {
     expect(rejectReason('other', '   ', label)).toEqual({ ok: false, problem: 'missing' })
     expect(rejectReason('other', '  Left early  ', label)).toEqual({ ok: true, reason: 'Left early' })
     expect(rejectReason('other', 'x'.repeat(281), label)).toEqual({ ok: false, problem: 'tooLong' })
+  })
+})
+
+describe('another day and undo', () => {
+  const NOW = new Date('2026-10-15T20:00:00.000Z') // Oct 15, 13:00 in California
+
+  test('dayDate passes a picked date through; pickedDay maps today/yesterday to their buttons and refuses future or malformed dates', () => {
+    expect(dayDate('2026-10-03', NOW)).toBe('2026-10-03')
+    expect(dayDate('nonsense', NOW)).toBe('2026-10-15')
+    expect(pickedDay('2026-10-15', NOW)).toBe('today')
+    expect(pickedDay('2026-10-14', NOW)).toBe('yesterday')
+    expect(pickedDay('2026-10-03', NOW)).toBe('2026-10-03')
+    expect(pickedDay('2026-10-16', NOW)).toBeNull()
+    expect(pickedDay('', NOW)).toBeNull()
+  })
+
+  test('canUndo: decided shifts younger than the window only', () => {
+    const decided = (status: 'confirmed' | 'rejected' | 'pending', agoMs: number | null) =>
+      ks({ status, checkOut: '2026-09-27T19:00:00.000Z', decidedAt: agoMs === null ? null : new Date(NOW.getTime() - agoMs).toISOString() })
+    expect(canUndo(decided('confirmed', HOUR), NOW.getTime())).toBe(true)
+    expect(canUndo(decided('rejected', 23 * HOUR), NOW.getTime())).toBe(true)
+    expect(canUndo(decided('confirmed', UNDO_WINDOW_MS), NOW.getTime())).toBe(false)
+    expect(canUndo(decided('confirmed', null), NOW.getTime())).toBe(false)
+    expect(canUndo(decided('pending', HOUR), NOW.getTime())).toBe(false)
   })
 })
