@@ -9,7 +9,11 @@
     "english": "English",
     "spanish": "Español",
     "source": "Source",
-    "sourceN": "Source {n}"
+    "sourceN": "Source {n}",
+    "share": {
+      "ready": "{name} is ready.",
+      "button": "Save or share it"
+    }
   },
   "home": {
     "title": "See if the CalFresh work rule applies to you",

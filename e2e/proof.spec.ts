@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
+import { withoutWebShare } from "./share";
 
 // /proof: files and the CF 888 stay on the phone. Logs volunteer hours at a named place,
 // then adds a file, fills the CF 888 for that place, and checks the downloaded PDF.
@@ -23,6 +24,7 @@ async function expectNoSidewaysScroll(page: Page) {
 }
 
 test("proof: a box per logged activity, files stay listed, and the CF 888 is filled on the phone", async ({ page }) => {
+  await withoutWebShare(page);
   // Anything posted to the server during this test would mean personal data left the phone.
   const posts: string[] = [];
   page.on("request", (r) => {

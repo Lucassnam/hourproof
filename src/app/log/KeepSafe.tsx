@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { backupFileName, makeBackup, parseBackup, restoreBackup } from "@/lib/hours/backup";
 import type { EntryStore } from "@/lib/hours/store";
 import { installAdvice, type InstallAdvice } from "@/lib/storage/persist";
+import { deliverFile, ShareStep, type PendingFile } from "@/components/ui/ShareStep";
 
 // "Keep your hours safe", at the bottom of the hour log (never in the demo): save a copy of
 // the hours as a file, put a copy back, and a hint about adding the app to the Home Screen.
@@ -45,6 +46,7 @@ export function KeepSafe({ store, today, onRestored }: { store: EntryStore; toda
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [advice, setAdvice] = useState<InstallAdvice>("none");
+  const [pending, setPending] = useState<{ file: PendingFile; n: number } | null>(null);
 
   useEffect(() => {
     const update = () => setAdvice(currentAdvice());
@@ -58,19 +60,18 @@ export function KeepSafe({ store, today, onRestored }: { store: EntryStore; toda
   const save = async () => {
     setStatus("");
     setError("");
+    setPending(null);
     try {
       const backup = makeBackup(await store.list(), new Date());
       if (backup.entries.length === 0) {
         setStatus(t("nothingToSave"));
         return;
       }
-      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = backupFileName(today);
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setStatus(t("saved", { n: backup.entries.length }));
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      // On iPhone and iPad this waits for its own tap (the share sheet); elsewhere it downloads.
+      const waiting = await deliverFile(blob, backupFileName(today));
+      if (waiting) setPending({ file: waiting, n: backup.entries.length });
+      else setStatus(t("saved", { n: backup.entries.length }));
     } catch {
       setError(t("saveError"));
     }
@@ -132,6 +133,16 @@ export function KeepSafe({ store, today, onRestored }: { store: EntryStore; toda
             }}
           />
         </label>
+        {pending && (
+          <ShareStep
+            pending={pending.file}
+            onDone={(result) => {
+              if (result === "cancelled") return;
+              setStatus(t("saved", { n: pending.n }));
+              setPending(null);
+            }}
+          />
+        )}
         <p role="status" className="text-lg font-semibold text-proof empty:hidden" data-testid="keep-safe-status">
           {status}
         </p>

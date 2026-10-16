@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { deliverFile, ShareStep, type PendingFile } from "@/components/ui/ShareStep";
 
 // One CF 888 per volunteer organization per month. The person's details live only in this
 // component's state and the PDF it makes: nothing is stored or sent. pdf-lib is loaded on
@@ -24,6 +25,7 @@ export function Cf888Form({ place, hours, month }: Props) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [pending, setPending] = useState<PendingFile | null>(null);
   const [values, setValues] = useState({
     name: "",
     birthdate: "",
@@ -58,6 +60,7 @@ export function Cf888Form({ place, hours, month }: Props) {
     setBusy(true);
     setFailed(false);
     setDone(false);
+    setPending(null);
     try {
       const [{ fillCf888, cf888FileName }, response] = await Promise.all([
         import("@/lib/proof/cf888"),
@@ -65,13 +68,11 @@ export function Cf888Form({ place, hours, month }: Props) {
       ]);
       if (!response.ok) throw new Error("template");
       const bytes = await fillCf888(await response.arrayBuffer(), values);
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = cf888FileName(values.organization, month);
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setDone(true);
+      const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+      // On iPhone and iPad this waits for its own tap (the share sheet); elsewhere it downloads.
+      const waiting = await deliverFile(blob, cf888FileName(values.organization, month));
+      setPending(waiting);
+      setDone(waiting === null);
     } catch {
       setFailed(true);
     } finally {
@@ -121,6 +122,16 @@ export function Cf888Form({ place, hours, month }: Props) {
       <button type="submit" disabled={busy} className="min-h-14 w-full rounded-2xl border-2 border-signal bg-signal px-4 text-lg font-semibold text-bg disabled:opacity-60">
         {busy ? t("preparing") : t("download")}
       </button>
+      {pending && (
+        <ShareStep
+          pending={pending}
+          onDone={(result) => {
+            if (result === "cancelled") return;
+            setPending(null);
+            setDone(true);
+          }}
+        />
+      )}
       {failed && (
         <p role="alert" className="text-lg font-semibold text-danger">
           {t("error")}
