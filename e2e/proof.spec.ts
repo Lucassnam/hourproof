@@ -96,3 +96,35 @@ test("proof: a box per logged activity, files stay listed, and the CF 888 is fil
 
   expect(posts).toEqual([]);
 });
+
+// A 1x1 PNG.
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
+test("proof packet: one PDF with the month's hours and its photos, made on the phone; a file that can't go in is said so", async ({ page }) => {
+  await withoutWebShare(page);
+  const posts: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() !== "GET") posts.push(`${r.method()} ${r.url()}`);
+  });
+  await page.goto("/log");
+  await addHours(page, { type: /^Paid work/, hours: "8" });
+  await page.getByRole("link", { name: "Your proof documents" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Your proof" })).toBeVisible();
+  await page.getByLabel("Add photos or PDFs for Paid work").setInputFiles([
+    { name: "stub.png", mimeType: "image/png", buffer: PNG },
+    { name: "broken.pdf", mimeType: "application/pdf", buffer: Buffer.from("not really a pdf") },
+  ]);
+  await expect(page.getByTestId("proof-work").getByRole("listitem")).toHaveCount(2);
+
+  const packet = page.getByTestId("packet");
+  const [download] = await Promise.all([page.waitForEvent("download"), packet.getByRole("button", { name: /^Make my proof packet for / }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^HourProof-\d{4}-\d{2}\.pdf$/);
+  await expect(page.getByTestId("packet-status")).toHaveText(
+    "Done. 1 file is attached. 1 file couldn't go in the PDF (it's marked in the list). Send or bring it separately.",
+  );
+  const doc = await PDFDocument.load(readFileSync(await download.path()));
+  expect(doc.getTitle()).toMatch(/^HourProof hours for \w+ \d{4}$/);
+  // The summary page, then the photo.
+  expect(doc.getPageCount()).toBe(2);
+  expect(posts).toEqual([]);
+});

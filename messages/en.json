@@ -452,7 +452,16 @@
       "stillNeeded": "Your county still needs a signed form like the CF 888, or to hear from the organization itself. Ask your county if it accepts an HourProof record."
     },
     "backToLog": "Back to your hour log",
-    "savedOnPhone": "Your files are saved only on this phone."
+    "savedOnPhone": "Your files are saved only on this phone.",
+    "packet": {
+      "heading": "Your proof packet",
+      "why": "One PDF with this month's hours, every entry, and the files below, to send or bring to your county. It's made on this phone and nothing is sent. Like the county's forms, it's in English.",
+      "make": "Make my proof packet for {month}",
+      "making": "Making the PDF…",
+      "made": "Done. {n, plural, =0 {No files were attached.} one {# file is attached.} other {# files are attached.}}",
+      "missing": "{n, plural, one {# file couldn't go in the PDF} other {# files couldn't go in the PDF}} (it's marked in the list). Send or bring it separately.",
+      "error": "The PDF couldn't be made. Try again."
+    }
   },
   "site": {
     "footer": {

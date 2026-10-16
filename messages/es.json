@@ -452,7 +452,16 @@
       "stillNeeded": "Su condado todavía necesita un formulario firmado como el CF 888, o que la organización misma se lo diga. Pregunte a su condado si acepta un registro de HourProof."
     },
     "backToLog": "Volver a su registro de horas",
-    "savedOnPhone": "Sus archivos se guardan solo en este teléfono."
+    "savedOnPhone": "Sus archivos se guardan solo en este teléfono.",
+    "packet": {
+      "heading": "Su paquete de comprobantes",
+      "why": "Un PDF con las horas de este mes, cada entrada y los archivos de abajo, para enviarlo o llevarlo a su condado. Se hace en este teléfono y no se envía nada. Como los formularios del condado, está en inglés.",
+      "make": "Hacer mi paquete de comprobantes de {month}",
+      "making": "Haciendo el PDF…",
+      "made": "Listo. {n, plural, =0 {No se adjuntó ningún archivo.} one {Se adjuntó # archivo.} other {Se adjuntaron # archivos.}}",
+      "missing": "{n, plural, one {# archivo no pudo ir en el PDF} other {# archivos no pudieron ir en el PDF}} (está marcado en la lista). Envíelo o llévelo por separado.",
+      "error": "No se pudo hacer el PDF. Inténtelo de nuevo."
+    }
   },
   "site": {
     "footer": {

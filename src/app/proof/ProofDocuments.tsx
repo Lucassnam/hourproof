@@ -15,6 +15,7 @@ import { ProofFileError, fileBlob, openProofStore, type ProofFile, type ProofSto
 import { kitchenConfirmed, proofEntries, proofGroups, volunteerPlaces } from "@/lib/proof/groups";
 import { formatMonth, formatNumber } from "@/app/log/format";
 import { Cf888Form } from "./Cf888Form";
+import { Packet } from "./Packet";
 
 // /proof: one box per activity type logged in the month, each holding the person's photos
 // and PDFs, plus a CF 888 per volunteer organization. Everything stays in IndexedDB on this
@@ -157,6 +158,10 @@ export function ProofDocuments() {
             {t("emptyAction")}
           </a>
         </div>
+      )}
+
+      {loaded && groups.length > 0 && (
+        <Packet month={month} monthName={monthName} entries={monthEntries} files={files} today={today} />
       )}
 
       {loaded &&
